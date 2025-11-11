@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
