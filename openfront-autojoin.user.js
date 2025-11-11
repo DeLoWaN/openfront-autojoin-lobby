@@ -4,6 +4,7 @@
 // @version      1.2.0
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
+// @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
 // @match        https://openfront.io/*
 // @match        https://*.openfront.io/*
 // @grant        GM_setValue
