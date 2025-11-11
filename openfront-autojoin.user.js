@@ -167,6 +167,50 @@
         return false;
     }
     
+    // Helper function to check if we're on the lobby page (allowing hash/path variations)
+    function isOnLobbyPage() {
+        try {
+            // Parse the configured root URL
+            const configUrl = new URL(CONFIG.rootURL);
+            const configOrigin = configUrl.origin;
+            const configHostname = configUrl.hostname;
+            
+            // Get current location base
+            const currentOrigin = window.location.origin;
+            const currentHostname = window.location.hostname;
+            
+            // Check if origins/hostnames match
+            if (currentOrigin !== configOrigin && currentHostname !== configHostname) {
+                return false;
+            }
+            
+            // Get current pathname and hash (normalize)
+            const currentPath = window.location.pathname;
+            const currentHash = window.location.hash;
+            
+            // Normalize path: remove trailing slashes and check if it's root or lobby-related
+            const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
+            const isRootPath = normalizedPath === '/';
+            
+            // Check if path is a lobby-related path suffix (e.g., /public-lobby)
+            const isLobbyPath = normalizedPath === '/public-lobby' || normalizedPath.startsWith('/public-lobby/');
+            
+            // Allow hash fragments like #/public-lobby or empty hash
+            const isLobbyHash = !currentHash || currentHash === '#' || currentHash === '#/public-lobby' || currentHash.startsWith('#/public-lobby/');
+            
+            // Consider it the lobby page if:
+            // 1. Origin/hostname matches AND
+            // 2. Either:
+            //    - Path is root/empty AND hash is empty or lobby-related, OR
+            //    - Path is a lobby path (path-based routing, hash doesn't matter)
+            return (isRootPath && isLobbyHash) || isLobbyPath;
+        } catch (error) {
+            // Fallback to strict comparison if URL parsing fails
+            console.warn('[Auto-Join] Error checking lobby page, using fallback:', error);
+            return location.href === CONFIG.rootURL;
+        }
+    }
+    
     // Check lobbies and auto-join if match found
     async function checkLobbies() {
         try {
@@ -182,7 +226,7 @@
             }
             
             // Check we're not already in a game
-            if (location.href !== CONFIG.rootURL) {
+            if (!isOnLobbyPage()) {
                 return;
             }
             
@@ -1319,7 +1363,7 @@
         const panel = document.getElementById('openfront-autojoin-panel');
         if (!panel) return;
         
-        const isLobby = location.href === CONFIG.rootURL;
+        const isLobby = isOnLobbyPage();
         const wasInGame = panel.dataset.wasInGame === 'true';
         
         if (!isLobby) {
