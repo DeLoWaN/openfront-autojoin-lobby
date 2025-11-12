@@ -1,6 +1,6 @@
 # OpenFrontIO Auto-Join Lobby
 
-A Tampermonkey/Greasemonkey userscript that automatically joins lobbies on OpenFront.io based on your game mode preferences and game capacity filters.
+A Tampermonkey/Greasemonkey userscript that automatically joins lobbies on OpenFront.io based on your game mode preferences and game capacity filters. Includes a "Notify Only" mode that alerts you when matching games are found without automatically joining.
 
 ![Auto-Join Lobby Panel](autojoin-lobby.png)
 
@@ -35,21 +35,31 @@ Tested and 100% functional against OpenFront v0.26.16
   - Filters can be set independently for FFA and Team modes
   - If capacity information is unavailable, the filter is bypassed (allows join)
 
+- **Join Modes**
+  - **Auto-Join Mode** (default): Automatically joins matching lobbies when found
+  - **Notify Only Mode**: Displays a notification banner when matching games are found without automatically joining
+    - Notification shows game details (mode, team configuration, player capacity)
+    - Auto-dismisses after 10 seconds or can be clicked to dismiss manually
+    - Prevents duplicate notifications for the same lobby
+    - Useful for manually reviewing games before joining
+
 - **Smart Auto-Join**
   - Automatically disables when returning to lobby (prevents immediate rejoin)
   - Permanently blocks auto-rejoin of recently left lobbies (only clears when joining a different lobby)
   - Visual feedback with search timer
-  - Status indicators (Active/Inactive/Joined)
+  - Status indicators (Active/Inactive/Joined/Searching)
   - Sound notification when a matching game is found (can be toggled on/off)
 
 - **User Interface**
+  - Join mode selector (Auto-Join / Notify Only) with radio buttons
   - Draggable panel (position is saved)
   - Toggle ON/OFF button
   - Visual range sliders for capacity filtering with live value display
   - Real-time search timer display
   - Current game info display showing players per team for team games
+  - Prominent notification banner (in Notify Only mode) with game details
   - Sound notification toggle (🔔 Sound notification checkbox)
-  - Settings persistence across page reloads
+  - Settings persistence across page reloads (including join mode preference)
   - Clean, modern dark theme UI
 
 ## Installation
@@ -82,16 +92,21 @@ Tested and 100% functional against OpenFront v0.26.16
 
 ### Basic Setup
 
-1. **Select Game Mode(s)**
+1. **Choose Join Mode**
+   - Select **"Auto-Join"** (default) to automatically join matching lobbies when found
+   - Select **"Notify Only"** to receive notifications when matching games are found without automatically joining
+   - Your mode preference is saved and restored on page reload
+
+2. **Select Game Mode(s)**
    - Check the "FFA (Free For All)" checkbox to enable FFA auto-join
    - Check the "Team" checkbox to enable Team mode auto-join
 
-2. **Configure Team Counts (Optional)**
+3. **Configure Team Counts (Optional)**
    - If Team mode is selected, you can optionally specify which team configurations to join
    - Use "Select All" / "Deselect All" buttons for quick selection
    - If no team counts are selected, the script will join any Team mode lobby
 
-3. **Set Game Capacity Filters (Optional)**
+4. **Set Game Capacity Filters (Optional)**
    - **For FFA Mode**: Use the visual range sliders to set minimum and maximum total game capacity
      - Drag the sliders to adjust the range (1-100 players)
      - The displayed values show "Any" when set to the full range (min: 1, max: 100)
@@ -102,31 +117,36 @@ Tested and 100% functional against OpenFront v0.26.16
    - Only games matching your selected range will be joined
    - If you set both sliders to the full range (Any/Any), all matching game modes will be joined
 
-4. **Configure Sound Notification (Optional)**
+5. **Configure Sound Notification (Optional)**
    - Check/uncheck the "🔔 Sound notification" checkbox to enable/disable sound alerts
    - When enabled, a pleasant chime sound plays when a matching game is found
    - Sound setting is saved and persists across page reloads
 
-5. **Enable Auto-Join**
+6. **Enable Auto-Join / Notify**
    - Click the "OFF" button to toggle it to "ON"
    - The script will start searching for matching lobbies
    - A search timer will display how long you've been searching
+   - **In Auto-Join mode**: The script will automatically join when a match is found
+   - **In Notify Only mode**: A notification banner will appear at the top of the screen when a match is found
    - If sound notification is enabled, you'll hear a chime when a match is found
 
 ### Status Indicators
 
-- **Red indicator**: Auto-join is OFF (Inactive)
-- **Green pulsing indicator**: Auto-join is ON (Active/Searching)
-- **Status text**: Shows "Inactive", "Active", or "Joined"
-- **Search timer**: Displays search duration or time when game was found
+- **Red indicator**: Auto-join/Notify is OFF (Inactive)
+- **Green pulsing indicator**: Auto-join/Notify is ON (Active/Searching)
+- **Status text**: Shows "Inactive", "Active", "Searching" (in Notify mode), or "Joined" (in Auto-Join mode)
+- **Search timer**: Displays search duration or "Game found!" message when a match is found
+- **Notification banner** (Notify Only mode): Appears at the top center of the screen showing game details when a match is found
 - **Current game info**: For Team mode, displays "X players per team" for the currently shown lobby (only visible on lobby page)
 
 ### Panel Controls
 
+- **Join Mode Selector**: Choose between "Auto-Join" and "Notify Only" modes using the radio buttons
 - **Drag**: Click and drag the header to move the panel around
-- **Toggle**: Click the ON/OFF button to enable/disable auto-join
+- **Toggle**: Click the ON/OFF button to enable/disable auto-join/notify
 - **Sound Toggle**: Check/uncheck the sound notification checkbox to enable/disable audio alerts
-- **Settings**: All settings (game modes, filters, sound preference) are automatically saved and restored on page reload
+- **Notification Banner** (Notify Only mode): Click the notification to dismiss it manually, or wait for it to auto-dismiss after 10 seconds
+- **Settings**: All settings (join mode, game modes, filters, sound preference) are automatically saved and restored on page reload
 
 ## Configuration
 
@@ -145,9 +165,10 @@ These can be modified in the script's `CONFIG` object if needed.
 - **Auto-disable on lobby return**: When you return to the lobby, auto-join automatically turns OFF (prevents immediate rejoin)
 - **Auto-restart on lobby leave**: When you leave a lobby (via leave-lobby event), auto-join restarts searching if it was enabled
 - **Permanent block on recently left lobby**: Once you leave a lobby, it is permanently blocked from auto-rejoin. The block is only cleared when you join a different lobby
-- **Always starts OFF**: Auto-join always starts in the OFF state, even if it was enabled when you last visited
-- **Settings persistence**: Your game mode preferences, capacity filters, and sound preference are saved and restored
+- **Always starts OFF**: Auto-join/Notify always starts in the OFF state, even if it was enabled when you last visited
+- **Settings persistence**: Your join mode preference, game mode preferences, capacity filters, and sound preference are saved and restored
 - **Panel position**: The panel's position is saved and restored
+- **Notification behavior**: In Notify Only mode, notifications are automatically dismissed when entering a game or returning to lobby
 
 ## Technical Details
 
@@ -160,8 +181,10 @@ These can be modified in the script's `CONFIG` object if needed.
 - **URL Detection**: Uses URL-based detection to determine game state (lobby vs. in-game)
 - **Polling**: Checks for matching lobbies every 1 second when enabled
 - **Sound Notification**: Uses Web Audio API to generate a pleasant three-tone chime when a match is found
+- **Notification System**: In Notify Only mode, displays a prominent banner notification with game details, auto-dismisses after 10 seconds, and tracks notified lobbies to prevent duplicates
 - **UI Components**: Uses HTML5 range sliders with visual track fill for capacity selection
 - **Game Info Display**: Real-time display of players per team for team games, updating every second
+- **Mode Management**: Join mode preference (`autojoin` or `notify`) is stored and restored with other settings
 
 ## Version
 
