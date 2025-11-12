@@ -20,8 +20,7 @@
     // Configuration
     const CONFIG = {
         pollInterval: 1000, // ms - how often to check for matching lobbies
-        rootURL: 'https://openfront.io/', // Root URL for lobby detection
-        cooldownMs: 30000 // ms - cooldown period before rejoining a recently left lobby (30 seconds)
+        rootURL: 'https://openfront.io/' // Root URL for lobby detection
     };
 
     // State
@@ -35,9 +34,7 @@
     let gameFoundTime = null; // Timestamp when game was found (for fixed timer display)
     let isJoining = false; // Prevent concurrent join attempts
     let soundEnabled = true; // Sound notification enabled by default
-    let recentlyLeftLobbyID = null; // Track lobby ID that was just left to avoid immediate rejoin
-    let recentlyLeftTimestamp = null; // Timestamp when lobby was left (for cooldown)
-    let cooldownTimeout = null; // Timeout to clear recently left marker after cooldown expires
+    let recentlyLeftLobbyID = null; // Track lobby ID that was just left to prevent auto-rejoin
 
     // Load settings from storage
     function loadSettings() {
@@ -373,19 +370,9 @@
                 }
 
                 if (matchesCriteria(lobby, criteriaList)) {
-                    // Skip if this is the lobby we just left and cooldown hasn't expired
-                    if (recentlyLeftLobbyID === lobby.gameID && recentlyLeftTimestamp !== null) {
-                        const timeSinceLeave = Date.now() - recentlyLeftTimestamp;
-                        if (timeSinceLeave < CONFIG.cooldownMs) {
-                            continue;
-                        }
-                        // Cooldown expired, clear the marker
-                        recentlyLeftLobbyID = null;
-                        recentlyLeftTimestamp = null;
-                        if (cooldownTimeout) {
-                            clearTimeout(cooldownTimeout);
-                            cooldownTimeout = null;
-                        }
+                    // Skip if this is the lobby we just left (permanently block auto-rejoin)
+                    if (recentlyLeftLobbyID === lobby.gameID) {
+                        continue;
                     }
                     // Check we haven't already joined this lobby
                     if (!joinedLobbies.has(lobby.gameID)) {
@@ -394,11 +381,6 @@
                         joinedLobbies.add(lobby.gameID);
                         // Clear recently left lobby ID since we're joining a different one
                         recentlyLeftLobbyID = null;
-                        recentlyLeftTimestamp = null;
-                        if (cooldownTimeout) {
-                            clearTimeout(cooldownTimeout);
-                            cooldownTimeout = null;
-                        }
                         return; // Only join one lobby at a time
                     }
                 }
@@ -1151,21 +1133,7 @@
                 }
                 if (leftLobbyID) {
                     recentlyLeftLobbyID = leftLobbyID;
-                    recentlyLeftTimestamp = Date.now();
-                    console.log('[Auto-Join] Tracking left lobby ID:', recentlyLeftLobbyID, 'with cooldown:', CONFIG.cooldownMs, 'ms');
-                    
-                    // Clear any existing cooldown timeout
-                    if (cooldownTimeout) {
-                        clearTimeout(cooldownTimeout);
-                    }
-                    
-                    // Set timeout to clear the recently left marker after cooldown expires
-                    cooldownTimeout = setTimeout(() => {
-                        recentlyLeftLobbyID = null;
-                        recentlyLeftTimestamp = null;
-                        cooldownTimeout = null;
-                        console.log('[Auto-Join] Cooldown expired, can rejoin lobby:', leftLobbyID);
-                    }, CONFIG.cooldownMs);
+                    console.log('[Auto-Join] Tracking left lobby ID (permanently blocked from auto-rejoin):', recentlyLeftLobbyID);
                 }
                 // Clear joined lobbies to allow rejoining other lobbies
                 joinedLobbies.clear();
