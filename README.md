@@ -35,7 +35,7 @@ Tested and 100% functional against OpenFront v0.26.16
 
 - **Smart Auto-Join**
   - Automatically disables when returning to lobby (prevents immediate rejoin)
-  - Tracks recently left lobbies to avoid immediately rejoining the same lobby
+  - Permanently blocks auto-rejoin of recently left lobbies (only clears when joining a different lobby)
   - Visual feedback with search timer
   - Status indicators (Active/Inactive/Joined)
   - Sound notification when a matching game is found (can be toggled on/off)
@@ -130,7 +130,7 @@ These can be modified in the script's `CONFIG` object if needed.
 - **Auto-disable on game start**: When you enter a game, auto-join automatically turns OFF
 - **Auto-disable on lobby return**: When you return to the lobby, auto-join automatically turns OFF (prevents immediate rejoin)
 - **Auto-restart on lobby leave**: When you leave a lobby (via leave-lobby event), auto-join restarts searching if it was enabled
-- **Avoid immediate rejoin**: Tracks recently left lobbies to prevent immediately rejoining the same lobby you just left
+- **Permanent block on recently left lobby**: Once you leave a lobby, it is permanently blocked from auto-rejoin. The block is only cleared when you join a different lobby
 - **Always starts OFF**: Auto-join always starts in the OFF state, even if it was enabled when you last visited
 - **Settings persistence**: Your game mode preferences, capacity filters, and sound preference are saved and restored
 - **Panel position**: The panel's position is saved and restored
@@ -151,7 +151,7 @@ These can be modified in the script's `CONFIG` object if needed.
 
 ## Version
 
-Current version: **1.3.0**
+Current version: **1.3.1**
 
 ## Author
 
