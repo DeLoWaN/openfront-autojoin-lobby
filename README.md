@@ -54,6 +54,18 @@ Tested and 100% functional against OpenFront v0.26.16
 
 ## Installation
 
+### Easy Installation (Recommended)
+
+**Install directly from GreasyFork:**
+1. Make sure you have a userscript manager installed:
+   - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Edge, Safari)
+   - [Greasemonkey](https://www.greasespot.net/) (Firefox)
+   - [Violentmonkey](https://violentmonkey.github.io/) (Chrome, Firefox, Edge)
+2. Click here to install: **[Install from GreasyFork](https://greasyfork.org/en/scripts/555551-openfrontio-auto-join-lobby)**
+3. Navigate to [OpenFront.io](https://openfront.io/) and the Auto-Join panel should appear in the top-right corner
+
+### Manual Installation
+
 1. Install a userscript manager:
    - [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Edge, Safari)
    - [Greasemonkey](https://www.greasespot.net/) (Firefox)
