@@ -2,7 +2,7 @@
 
 A Tampermonkey/Greasemonkey userscript that automatically joins lobbies on OpenFront.io based on your game mode preferences and game capacity filters.
 
-![Auto-Join Lobby Panel](autojoin-lobby.png)
+<img src="autojoin-lobby.png" alt="Auto-Join Lobby Panel" width="600">
 
 ## Disclaimer
 
