@@ -490,16 +490,26 @@
     }
 
     // Dismiss notification
-    function dismissNotification() {
-        const notificationElement = document.getElementById('game-found-notification');
-        if (notificationElement) {
-            notificationElement.classList.add('notification-dismissing');
-            setTimeout(() => {
-                notificationElement.remove();
-            }, 300); // Match CSS transition duration
+    function dismissNotification(targetElement = null) {
+        const elements = targetElement
+            ? [targetElement]
+            : Array.from(document.querySelectorAll('.game-found-notification'));
+
+        if (elements.length === 0) {
+            if (notificationTimeout) {
+                clearTimeout(notificationTimeout);
+                notificationTimeout = null;
+            }
+            return;
         }
-        
-        // Clear timeout if it exists
+
+        elements.forEach(element => {
+            if (!element.classList.contains('notification-dismissing')) {
+                element.classList.add('notification-dismissing');
+            }
+            setTimeout(() => element.remove(), 300);
+        });
+
         if (notificationTimeout) {
             clearTimeout(notificationTimeout);
             notificationTimeout = null;
@@ -511,7 +521,7 @@
         // If notification already exists, dismiss it first (show only latest)
         const existingNotification = document.getElementById('game-found-notification');
         if (existingNotification) {
-            dismissNotification();
+            dismissNotification(existingNotification);
             // Wait a bit for the dismiss animation
             setTimeout(() => {
                 createNewNotification(lobby);
@@ -531,7 +541,7 @@
         notification.textContent = message;
         
         // Click to dismiss
-        notification.addEventListener('click', dismissNotification);
+        notification.addEventListener('click', () => dismissNotification(notification));
         
         // Add to body
         document.body.appendChild(notification);
@@ -543,7 +553,7 @@
         
         // Auto-dismiss after 10 seconds
         notificationTimeout = setTimeout(() => {
-            dismissNotification();
+            dismissNotification(notification);
         }, 10000);
     }
 
