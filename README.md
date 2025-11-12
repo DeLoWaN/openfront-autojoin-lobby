@@ -188,7 +188,7 @@ These can be modified in the script's `CONFIG` object if needed.
 
 ## Version
 
-Current version: **1.4.0**
+Current version: **1.4.1**
 
 ## Author
 
