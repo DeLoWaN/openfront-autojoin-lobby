@@ -35,6 +35,9 @@
     let isJoining = false; // Prevent concurrent join attempts
     let soundEnabled = true; // Sound notification enabled by default
     let recentlyLeftLobbyID = null; // Track lobby ID that was just left to prevent auto-rejoin
+    let joinMode = 'autojoin'; // 'autojoin' or 'notify'
+    let notifiedLobbies = new Set(); // Track lobbies we've notified about
+    let notificationTimeout = null; // Timeout for auto-dismissing notification
 
     // Load settings from storage
     function loadSettings() {
@@ -44,6 +47,7 @@
             autoJoinEnabled = false;
             criteriaList = saved.criteria || [];
             soundEnabled = saved.soundEnabled !== undefined ? saved.soundEnabled : true;
+            joinMode = saved.joinMode || 'autojoin'; // Default to 'autojoin' for backward compatibility
         }
     }
 
@@ -52,7 +56,8 @@
         GM_setValue('autoJoinSettings', {
             enabled: autoJoinEnabled,
             criteria: criteriaList,
-            soundEnabled: soundEnabled
+            soundEnabled: soundEnabled,
+            joinMode: joinMode
         });
     }
 
@@ -374,14 +379,33 @@
                     if (recentlyLeftLobbyID === lobby.gameID) {
                         continue;
                     }
-                    // Check we haven't already joined this lobby
-                    if (!joinedLobbies.has(lobby.gameID)) {
-                        console.log('[Auto-Join] Joining lobby:', lobby.gameID);
-                        joinLobby(lobby);
-                        joinedLobbies.add(lobby.gameID);
-                        // Clear recently left lobby ID since we're joining a different one
-                        recentlyLeftLobbyID = null;
-                        return; // Only join one lobby at a time
+                    
+                    if (joinMode === 'notify') {
+                        // Notify mode: show notification instead of joining
+                        if (!notifiedLobbies.has(lobby.gameID)) {
+                            console.log('[Auto-Join] Game found (notify mode):', lobby.gameID);
+                            showGameFoundNotification(lobby);
+                            playGameFoundSound();
+                            notifiedLobbies.add(lobby.gameID);
+                            // Mark that game was found and stop timer updates
+                            gameFoundTime = Date.now();
+                            stopTimer();
+                            updateSearchTimer();
+                            // Update UI status
+                            updateUI({ status: 'found', gameID: lobby.gameID });
+                            return; // Only notify about one lobby at a time
+                        }
+                    } else {
+                        // Auto-join mode: existing behavior
+                        // Check we haven't already joined this lobby
+                        if (!joinedLobbies.has(lobby.gameID)) {
+                            console.log('[Auto-Join] Joining lobby:', lobby.gameID);
+                            joinLobby(lobby);
+                            joinedLobbies.add(lobby.gameID);
+                            // Clear recently left lobby ID since we're joining a different one
+                            recentlyLeftLobbyID = null;
+                            return; // Only join one lobby at a time
+                        }
                     }
                 }
             }
@@ -420,6 +444,107 @@
         } catch (error) {
             console.warn('[Auto-Join] Could not play sound:', error);
         }
+    }
+
+    // Get formatted game details text for notification
+    function getGameDetailsText(lobby) {
+        if (!lobby || !lobby.gameConfig) {
+            return 'Game Found!';
+        }
+
+        const config = lobby.gameConfig;
+        const gameCapacity = lobby.maxClients || config.maxClients || config.maxPlayers || null;
+
+        if (config.gameMode === 'Free For All') {
+            if (gameCapacity !== null) {
+                return `Game Found! FFA - ${gameCapacity} players`;
+            }
+            return 'Game Found! FFA';
+        } else if (config.gameMode === 'Team') {
+            const playerTeams = config.playerTeams;
+            const numericTeamCount = getNumericTeamCount(playerTeams);
+            
+            let teamCountText = '';
+            if (playerTeams === 'Duos') {
+                teamCountText = 'Duos';
+            } else if (playerTeams === 'Trios') {
+                teamCountText = 'Trios';
+            } else if (playerTeams === 'Quads') {
+                teamCountText = 'Quads';
+            } else if (playerTeams === 'Humans Vs Nations') {
+                teamCountText = 'Humans Vs Nations';
+            } else if (typeof playerTeams === 'number') {
+                teamCountText = `${playerTeams} teams`;
+            } else {
+                teamCountText = 'Team';
+            }
+
+            if (gameCapacity !== null && numericTeamCount !== null && numericTeamCount > 0) {
+                const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
+                return `Game Found! Team (${teamCountText}) - ${playersPerTeam} players per team`;
+            }
+            return `Game Found! Team (${teamCountText})`;
+        }
+
+        return 'Game Found!';
+    }
+
+    // Dismiss notification
+    function dismissNotification() {
+        const notificationElement = document.getElementById('game-found-notification');
+        if (notificationElement) {
+            notificationElement.classList.add('notification-dismissing');
+            setTimeout(() => {
+                notificationElement.remove();
+            }, 300); // Match CSS transition duration
+        }
+        
+        // Clear timeout if it exists
+        if (notificationTimeout) {
+            clearTimeout(notificationTimeout);
+            notificationTimeout = null;
+        }
+    }
+
+    // Show game found notification
+    function showGameFoundNotification(lobby) {
+        // If notification already exists, dismiss it first (show only latest)
+        const existingNotification = document.getElementById('game-found-notification');
+        if (existingNotification) {
+            dismissNotification();
+            // Wait a bit for the dismiss animation
+            setTimeout(() => {
+                createNewNotification(lobby);
+            }, 50);
+        } else {
+            createNewNotification(lobby);
+        }
+    }
+
+    // Create new notification element
+    function createNewNotification(lobby) {
+        const notification = document.createElement('div');
+        notification.id = 'game-found-notification';
+        notification.className = 'game-found-notification';
+        
+        const message = getGameDetailsText(lobby);
+        notification.textContent = message;
+        
+        // Click to dismiss
+        notification.addEventListener('click', dismissNotification);
+        
+        // Add to body
+        document.body.appendChild(notification);
+        
+        // Trigger animation
+        setTimeout(() => {
+            notification.classList.add('notification-visible');
+        }, 10);
+        
+        // Auto-dismiss after 10 seconds
+        notificationTimeout = setTimeout(() => {
+            dismissNotification();
+        }, 10000);
     }
 
     // Join a lobby - only join if we can click the button (for visual feedback)
@@ -481,6 +606,8 @@
 
         searchStartTime = Date.now();
         gameFoundTime = null; // Reset game found time
+        // Clear notified lobbies when starting new search
+        notifiedLobbies.clear();
         updateSearchTimer();
 
         // Update timer display every second
@@ -502,6 +629,10 @@
         searchStartTime = null;
         gameFoundTime = null;
         updateSearchTimer();
+        // Dismiss any active notification
+        dismissNotification();
+        // Clear notified lobbies
+        notifiedLobbies.clear();
         // Reset status to inactive when stopping
         updateUI({ status: null });
     }
@@ -753,7 +884,8 @@
             if (options.status === 'joined' && autoJoinEnabled) {
                 statusText.textContent = 'Joined';
             } else if (autoJoinEnabled) {
-                statusText.textContent = 'Active';
+                // In notify mode, always show "Searching" (timer will show "Game found!" when applicable)
+                statusText.textContent = joinMode === 'notify' ? 'Searching' : 'Active';
             } else {
                 statusText.textContent = 'Inactive';
             }
@@ -779,6 +911,18 @@
             </div>
 
             <div class="autojoin-content">
+                <!-- Mode Selector -->
+                <div class="join-mode-selector">
+                    <label class="mode-radio-label">
+                        <input type="radio" name="joinMode" value="autojoin" id="join-mode-autojoin" checked>
+                        <span>Auto-Join</span>
+                    </label>
+                    <label class="mode-radio-label">
+                        <input type="radio" name="joinMode" value="notify" id="join-mode-notify">
+                        <span>Notify Only</span>
+                    </label>
+                </div>
+
                 <!-- FFA Section -->
                 <div class="autojoin-mode-section">
                     <label class="mode-checkbox-label">
@@ -1112,6 +1256,17 @@
             });
         }
 
+        // Mode selector radio buttons
+        const modeRadios = document.querySelectorAll('input[name="joinMode"]');
+        modeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                joinMode = e.target.value;
+                saveSettings();
+                // Update UI to reflect mode change
+                updateUI();
+            });
+        });
+
         // Listen for leave-lobby event - restart search when user manually leaves
         document.addEventListener('leave-lobby', () => {
             if (autoJoinEnabled) {
@@ -1137,6 +1292,8 @@
                 }
                 // Clear joined lobbies to allow rejoining other lobbies
                 joinedLobbies.clear();
+                // Clear notified lobbies
+                notifiedLobbies.clear();
                 // Reset game found time
                 gameFoundTime = null;
                 // Restart monitoring (this will reset the search timer)
@@ -1150,6 +1307,17 @@
 
     // Load settings into UI
     function loadUIFromSettings() {
+        // Load join mode
+        const autojoinRadio = document.getElementById('join-mode-autojoin');
+        const notifyRadio = document.getElementById('join-mode-notify');
+        if (autojoinRadio && notifyRadio) {
+            if (joinMode === 'notify') {
+                notifyRadio.checked = true;
+            } else {
+                autojoinRadio.checked = true;
+            }
+        }
+
         // Load criteria into UI
         let teamCheckboxChecked = false;
         let teamMinPlayers = null;
@@ -1238,7 +1406,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            width: 350px;
+            width: 380px;
             max-height: 90vh;
             overflow-y: auto;
             background: rgba(0, 0, 0, 0.9);
@@ -1614,6 +1782,82 @@
             border-color: rgba(100, 100, 100, 0.2);
             font-style: italic;
         }
+
+        .join-mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+            justify-content: center;
+        }
+
+        .mode-radio-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.9);
+            user-select: none;
+        }
+
+        .mode-radio-label input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+
+        .game-found-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: 3px solid #60a5fa;
+            border-radius: 8px;
+            padding: 20px 30px;
+            z-index: 20000;
+            color: white;
+            font-family: sans-serif;
+            font-size: 1.1em;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.5);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            min-width: 300px;
+            max-width: 500px;
+            animation: notificationPulse 2s infinite;
+        }
+
+        .game-found-notification.notification-visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .game-found-notification.notification-dismissing {
+            transform: translateX(-50%) translateY(-100px);
+            opacity: 0;
+        }
+
+        @keyframes notificationPulse {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            50% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 8px rgba(59, 130, 246, 0);
+            }
+        }
+
+        .game-found-notification:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border-color: #93c5fd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 25px rgba(59, 130, 246, 0.7);
+        }
     `);
 
     // Update panel visibility based on game state (URL-based detection)
@@ -1628,6 +1872,8 @@
             // In game → hide panel
             panel.classList.add('hidden');
             stopGameInfoUpdates(); // Stop updating game info when not in lobby
+            // Dismiss notification when game starts
+            dismissNotification();
             // If we just entered a game, disable auto-join
             if (!wasInGame && autoJoinEnabled) {
                 console.log('[Auto-Join] Game started, disabling auto-join');
@@ -1651,6 +1897,8 @@
                 saveSettings();
                 updateUI();
             }
+            // Clear notified lobbies when returning to lobby
+            notifiedLobbies.clear();
             panel.dataset.wasInGame = 'false';
         }
     }
