@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.4.3
+// @version      1.4.4
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
@@ -38,6 +38,8 @@
     let joinMode = 'autojoin'; // 'autojoin' or 'notify'
     let notifiedLobbies = new Set(); // Track lobbies we've notified about
     let notificationTimeout = null; // Timeout for auto-dismissing notification
+    let gameFoundAudio = null; // Preloaded audio for game found notification
+    let gameStartAudio = null; // Preloaded audio for game start bell
 
     // Load settings from storage
     function loadSettings() {
@@ -444,112 +446,46 @@
     }
 
 
-    // Play a single bell ring
-    function playSingleBell(audioContext, startTime) {
-        // Create multiple oscillators for a richer bell sound
-        const osc1 = audioContext.createOscillator();
-        const osc2 = audioContext.createOscillator();
-        const osc3 = audioContext.createOscillator();
-        const gain1 = audioContext.createGain();
-        const gain2 = audioContext.createGain();
-        const gain3 = audioContext.createGain();
-
-        // Connect oscillators to gains
-        osc1.connect(gain1);
-        osc2.connect(gain2);
-        osc3.connect(gain3);
-        
-        // Connect gains to destination
-        gain1.connect(audioContext.destination);
-        gain2.connect(audioContext.destination);
-        gain3.connect(audioContext.destination);
-
-        // Boxing ring bell frequencies (metallic bell sound)
-        // Main tone: around 800Hz (typical bell frequency)
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(800, startTime);
-        
-        // Harmonic: 2x frequency for metallic quality
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(1600, startTime);
-        
-        // Higher harmonic: 3x frequency for brightness
-        osc3.type = 'sine';
-        osc3.frequency.setValueAtTime(2400, startTime);
-
-        // Volume envelope: sharp attack, quick decay with resonance
-        // Main tone
-        gain1.gain.setValueAtTime(0, startTime);
-        gain1.gain.linearRampToValueAtTime(0.4, startTime + 0.01); // Quick attack
-        gain1.gain.exponentialRampToValueAtTime(0.1, startTime + 0.15); // Decay
-        gain1.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5); // Long tail
-        
-        // Harmonic 1
-        gain2.gain.setValueAtTime(0, startTime);
-        gain2.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
-        gain2.gain.exponentialRampToValueAtTime(0.05, startTime + 0.15);
-        gain2.gain.exponentialRampToValueAtTime(0.005, startTime + 0.5);
-        
-        // Harmonic 2
-        gain3.gain.setValueAtTime(0, startTime);
-        gain3.gain.linearRampToValueAtTime(0.15, startTime + 0.01);
-        gain3.gain.exponentialRampToValueAtTime(0.03, startTime + 0.15);
-        gain3.gain.exponentialRampToValueAtTime(0.003, startTime + 0.5);
-
-        // Start and stop oscillators
-        osc1.start(startTime);
-        osc1.stop(startTime + 0.6);
-        osc2.start(startTime);
-        osc2.stop(startTime + 0.6);
-        osc3.start(startTime);
-        osc3.stop(startTime + 0.6);
+    // Preload audio files for better performance
+    function preloadSounds() {
+        try {
+            gameFoundAudio = new Audio('https://github.com/DeLoWaN/openfront-autojoin-lobby/raw/refs/heads/main/notification_sounds/new-notification-014-363678.mp3');
+            gameFoundAudio.volume = 0.5;
+            gameFoundAudio.preload = 'auto';
+            
+            gameStartAudio = new Audio('https://github.com/DeLoWaN/openfront-autojoin-lobby/raw/refs/heads/main/notification_sounds/opening-bell-421471.mp3');
+            gameStartAudio.volume = 0.5;
+            gameStartAudio.preload = 'auto';
+            
+            console.log('[Auto-Join] Audio files preloaded');
+        } catch (error) {
+            console.warn('[Auto-Join] Could not preload audio files:', error);
+        }
     }
 
     // Play sound notification (chime) when a game is found
     function playGameFoundSound() {
-        if (!soundEnabled) return;
+        if (!soundEnabled || !gameFoundAudio) return;
 
         try {
-            // Use Web Audio API to generate a pleasant notification sound
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            // Connect nodes
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            // Configure sound: two-tone chime (upward)
-            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
-            oscillator.frequency.setValueAtTime(554.37, audioContext.currentTime + 0.1); // C#5
-            oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
-
-            // Set volume envelope
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
-            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.4);
-
-            // Play sound
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.4);
+            gameFoundAudio.currentTime = 0; // Reset to start
+            gameFoundAudio.play().catch(error => {
+                console.warn('[Auto-Join] Could not play game found sound:', error);
+            });
         } catch (error) {
-            console.warn('[Auto-Join] Could not play sound:', error);
+            console.warn('[Auto-Join] Could not play game found sound:', error);
         }
     }
 
-    // Play boxing ring bell sound when game starts/joins (three rings: ding ding ding)
+    // Play boxing ring bell sound when game starts/joins
     function playGameStartSound() {
-        if (!soundEnabled) return;
+        if (!soundEnabled || !gameStartAudio) return;
 
         try {
-            // Create audio context (setup separated from play call)
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const now = audioContext.currentTime;
-            
-            // Play three bell rings with spacing (triggered when game starts)
-            playSingleBell(audioContext, now);           // First ding
-            playSingleBell(audioContext, now + 0.3);     // Second ding (0.3s after first)
-            playSingleBell(audioContext, now + 0.6);     // Third ding (0.3s after second)
+            gameStartAudio.currentTime = 0; // Reset to start
+            gameStartAudio.play().catch(error => {
+                console.warn('[Auto-Join] Could not play game start sound:', error);
+            });
         } catch (error) {
             console.warn('[Auto-Join] Could not play game start sound:', error);
         }
@@ -2144,6 +2080,9 @@
         console.log('[Auto-Join] Settings loaded:', { autoJoinEnabled, criteriaList });
         createUI();
         console.log('[Auto-Join] UI created');
+
+        // Preload audio files
+        preloadSounds();
 
         // Always start with auto-join OFF (even if it was saved as enabled)
         autoJoinEnabled = false;
