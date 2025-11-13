@@ -119,7 +119,8 @@ Tested and 100% functional against OpenFront v0.26.16
 
 5. **Configure Sound Notification (Optional)**
    - Check/uncheck the "🔔 Sound notification" checkbox to enable/disable sound alerts
-   - When enabled, a boxing ring bell sound (three rings: ding ding ding) plays when a matching game is found
+   - When enabled, a chime sound plays when a matching game is found
+   - When enabled, a boxing ring bell sound (three rings: ding ding ding) plays when the game starts/joins
    - Sound setting is saved and persists across page reloads
 
 6. **Enable Auto-Join / Notify**
@@ -128,7 +129,7 @@ Tested and 100% functional against OpenFront v0.26.16
    - A search timer will display how long you've been searching
    - **In Auto-Join mode**: The script will automatically join when a match is found
    - **In Notify Only mode**: A notification banner will appear at the top of the screen when a match is found
-   - If sound notification is enabled, you'll hear a boxing ring bell (three rings: ding ding ding) when a match is found
+   - If sound notification is enabled, you'll hear a chime when a match is found, and a boxing ring bell (three rings: ding ding ding) when the game starts/joins
 
 ### Status Indicators
 
@@ -180,7 +181,7 @@ These can be modified in the script's `CONFIG` object if needed.
 - **Join Method**: Clicks the join button programmatically (provides visual feedback)
 - **URL Detection**: Uses URL-based detection to determine game state (lobby vs. in-game)
 - **Polling**: Checks for matching lobbies every 1 second when enabled
-- **Sound Notification**: Uses Web Audio API to generate a boxing ring bell sound (three rings: ding ding ding) when a matching game is found (`playGameStartSound()`). Audio context creation is separated from the play call, with the three-ring sequence triggered exactly when a match is detected
+- **Sound Notification**: Uses Web Audio API to generate two distinct sounds: a chime notification (`playGameFoundSound()`) when a matching game is found, and a boxing ring bell sound (three rings: ding ding ding) (`playGameStartSound()`) when the game starts/joins. Audio context creation is separated from the play calls, with sounds triggered at the appropriate events
 - **Notification System**: In Notify Only mode, displays a prominent banner notification with game details, auto-dismisses after 10 seconds, and tracks notified lobbies to prevent duplicates
 - **UI Components**: Uses HTML5 range sliders with visual track fill for capacity selection
 - **Game Info Display**: Real-time display of players per team for team games, updating every second
