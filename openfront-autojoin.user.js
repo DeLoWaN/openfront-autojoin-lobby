@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.4.2
+// @version      1.4.3
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
@@ -137,33 +137,55 @@
             return;
         }
 
-        // Get numeric team count
+        // Get team configuration
         const playerTeams = config.playerTeams;
-        const numericTeamCount = getNumericTeamCount(playerTeams);
-        
-        if (numericTeamCount === null || numericTeamCount === 0) {
-            gameInfoElement.textContent = 'Current game: Team count unknown';
-            gameInfoElement.classList.add('not-applicable');
-            return;
-        }
-
-        // Calculate players per team
-        const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
         
         // Display the info for team games
-        gameInfoElement.textContent = `Current game: ${playersPerTeam} players per team`;
-        gameInfoElement.classList.remove('not-applicable');
+        // For Duos/Trios/Quads, show the mode name directly
+        if (playerTeams === 'Duos') {
+            gameInfoElement.textContent = 'Current game: Duos';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Trios') {
+            gameInfoElement.textContent = 'Current game: Trios';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Quads') {
+            gameInfoElement.textContent = 'Current game: Quads';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Humans Vs Nations') {
+            gameInfoElement.textContent = 'Current game: Humans Vs Nations';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (typeof playerTeams === 'number') {
+            // For modes with number of teams, show players per team
+            const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+            if (playersPerTeam === null) {
+                gameInfoElement.textContent = 'Current game: Team configuration unknown';
+                gameInfoElement.classList.add('not-applicable');
+                return;
+            }
+            gameInfoElement.textContent = `Current game: ${playersPerTeam} players per team (${playerTeams} teams)`;
+            gameInfoElement.classList.remove('not-applicable');
+        } else {
+            gameInfoElement.textContent = 'Current game: Team configuration unknown';
+            gameInfoElement.classList.add('not-applicable');
+        }
     }
 
-    // Helper function to extract numeric team count from playerTeams
-    function getNumericTeamCount(playerTeams) {
-        if (typeof playerTeams === 'number') {
-            return playerTeams;
-        }
+    // Helper function to get players per team from playerTeams
+    // When playerTeams is a string like 'Quads', 'Trios', 'Duos', it represents players per team directly
+    // When playerTeams is a number, it represents the number of teams, so we calculate players per team
+    function getPlayersPerTeam(playerTeams, gameCapacity) {
+        // String values represent players per team directly
         if (playerTeams === 'Duos') return 2;
         if (playerTeams === 'Trios') return 3;
         if (playerTeams === 'Quads') return 4;
-        if (playerTeams === 'Humans Vs Nations') return 2; // Typically 2 teams
+        if (playerTeams === 'Humans Vs Nations') {
+            // Typically 2 teams, so calculate players per team
+            return Math.floor(gameCapacity / 2);
+        }
+        // Number values represent the number of teams
+        if (typeof playerTeams === 'number' && playerTeams > 0) {
+            return Math.floor(gameCapacity / playerTeams);
+        }
         return null;
     }
 
@@ -197,16 +219,18 @@
                     const playerTeams = config.playerTeams;
 
                     // Handle special modes
+                    // Note: Duos/Trios/Quads are game modes (players per team), NOT team counts
+                    // They should only match their exact string values, not numeric team counts
                     if (criteria.teamCount === 'Duos') {
-                        if (playerTeams !== 'Duos' && playerTeams !== 2) {
+                        if (playerTeams !== 'Duos') {
                             continue;
                         }
                     } else if (criteria.teamCount === 'Trios') {
-                        if (playerTeams !== 'Trios' && playerTeams !== 3) {
+                        if (playerTeams !== 'Trios') {
                             continue;
                         }
                     } else if (criteria.teamCount === 'Quads') {
-                        if (playerTeams !== 'Quads' && playerTeams !== 4) {
+                        if (playerTeams !== 'Quads') {
                             continue;
                         }
                     } else if (criteria.teamCount === 'Humans Vs Nations') {
@@ -247,36 +271,41 @@
                     }
                 } else if (criteria.gameMode === 'Team') {
                     // For Team games, check based on players per team
-                    if (gameCapacity === null) {
-                        // No capacity info available, skip capacity filtering
-                        return true;
-                    }
-
-                    // Get the numeric team count
+                    // BUT: Duos/Trios/Quads always have 2/3/4 players per team by definition,
+                    // so we skip the players per team filter for these modes
                     const playerTeams = config.playerTeams;
-                    const numericTeamCount = getNumericTeamCount(playerTeams);
+                    const isFixedPlayersPerTeam = playerTeams === 'Duos' || playerTeams === 'Trios' || playerTeams === 'Quads';
                     
-                    if (numericTeamCount === null || numericTeamCount === 0) {
-                        // Cannot determine team count, skip capacity filtering
-                        return true;
-                    }
+                    // Only apply players per team filter for modes with number of teams (2/3/4/5/6/7 teams)
+                    if (!isFixedPlayersPerTeam) {
+                        if (gameCapacity === null) {
+                            // No capacity info available, skip capacity filtering
+                            return true;
+                        }
 
-                    // Calculate players per team (rounded down)
-                    const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
+                        // Get players per team
+                        const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+                        
+                        if (playersPerTeam === null) {
+                            // Cannot determine players per team, skip capacity filtering
+                            return true;
+                        }
 
-                    // Check minPlayers (minimum players per team)
-                    if (criteria.minPlayers !== null && criteria.minPlayers !== undefined) {
-                        if (playersPerTeam < criteria.minPlayers) {
-                            continue; // Players per team is less than minimum required
+                        // Check minPlayers (minimum players per team)
+                        if (criteria.minPlayers !== null && criteria.minPlayers !== undefined) {
+                            if (playersPerTeam < criteria.minPlayers) {
+                                continue; // Players per team is less than minimum required
+                            }
+                        }
+
+                        // Check maxPlayers (maximum players per team)
+                        if (criteria.maxPlayers !== null && criteria.maxPlayers !== undefined) {
+                            if (playersPerTeam > criteria.maxPlayers) {
+                                continue; // Players per team exceeds maximum allowed
+                            }
                         }
                     }
-
-                    // Check maxPlayers (maximum players per team)
-                    if (criteria.maxPlayers !== null && criteria.maxPlayers !== undefined) {
-                        if (playersPerTeam > criteria.maxPlayers) {
-                            continue; // Players per team exceeds maximum allowed
-                        }
-                    }
+                    // For Duos/Trios/Quads, skip players per team filtering (always 2/3/4 by definition)
                 }
 
                 // All criteria satisfied
@@ -542,7 +571,6 @@
             return 'Game Found! FFA';
         } else if (config.gameMode === 'Team') {
             const playerTeams = config.playerTeams;
-            const numericTeamCount = getNumericTeamCount(playerTeams);
             
             let teamCountText = '';
             if (playerTeams === 'Duos') {
@@ -559,10 +587,19 @@
                 teamCountText = 'Team';
             }
 
-            if (gameCapacity !== null && numericTeamCount !== null && numericTeamCount > 0) {
-                const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
-                return `Game Found! Team (${teamCountText}) - ${playersPerTeam} players per team`;
+            // For Duos/Trios/Quads, just show the mode name (always 2/3/4 players per team)
+            if (playerTeams === 'Duos' || playerTeams === 'Trios' || playerTeams === 'Quads') {
+                return `Game Found! Team (${teamCountText})`;
             }
+            
+            // For modes with number of teams, show players per team
+            if (typeof playerTeams === 'number' && gameCapacity !== null) {
+                const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+                if (playersPerTeam !== null) {
+                    return `Game Found! Team (${teamCountText}) - ${playersPerTeam} players per team`;
+                }
+            }
+            
             return `Game Found! Team (${teamCountText})`;
         }
 
@@ -940,11 +977,16 @@
             } else {
                 // Create a separate criteria for each selected team count
                 for (const teamCount of selectedTeamCounts) {
+                    // Duos/Trios/Quads are game modes with fixed players per team (2/3/4)
+                    // Player per team filters do NOT apply to these modes
+                    const isFixedPlayersPerTeam = teamCount === 'Duos' || teamCount === 'Trios' || teamCount === 'Quads';
+                    
                     const teamCriteria = {
                         gameMode: 'Team',
                         teamCount: teamCount,
-                        minPlayers: minPlayers,
-                        maxPlayers: maxPlayers
+                        // Only include player filters for modes with variable team counts (2/3/4/5/6/7 teams)
+                        minPlayers: isFixedPlayersPerTeam ? null : minPlayers,
+                        maxPlayers: isFixedPlayersPerTeam ? null : maxPlayers
                     };
                     criteriaList.push(teamCriteria);
                 }
@@ -1075,6 +1117,12 @@
                                 <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
                                 <!-- Humans Vs Nations removed from UI (code kept for potential reactivation) -->
+                            </div>
+                        </div>
+                        <div class="player-filter-warning" id="team-player-filter-warning" style="display: none;">
+                            <div class="warning-icon">⚠️</div>
+                            <div class="warning-text">
+                                <strong>Note:</strong> Player per team filters do <strong>NOT</strong> apply to Duos, Trios, or Quads modes.
                             </div>
                         </div>
                         <div class="player-filter-info">
@@ -1265,6 +1313,7 @@
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', () => {
                 selectAllTeamCounts();
+                updatePlayerFilterWarning();
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
             });
@@ -1272,9 +1321,27 @@
         if (deselectAllBtn) {
             deselectAllBtn.addEventListener('click', () => {
                 deselectAllTeamCounts();
+                updatePlayerFilterWarning();
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
             });
+        }
+
+        // Function to update player filter warning visibility
+        function updatePlayerFilterWarning() {
+            const warningElement = document.getElementById('team-player-filter-warning');
+            if (!warningElement) return;
+            
+            // Check if any of Duos/Trios/Quads are selected
+            const duosCheckbox = document.getElementById('autojoin-team-duos');
+            const triosCheckbox = document.getElementById('autojoin-team-trios');
+            const quadsCheckbox = document.getElementById('autojoin-team-quads');
+            
+            const hasSpecialMode = (duosCheckbox && duosCheckbox.checked) ||
+                                   (triosCheckbox && triosCheckbox.checked) ||
+                                   (quadsCheckbox && quadsCheckbox.checked);
+            
+            warningElement.style.display = hasSpecialMode ? 'flex' : 'none';
         }
 
         // Listen to all team count checkbox changes
@@ -1287,11 +1354,15 @@
             const checkbox = document.getElementById(id);
             if (checkbox) {
                 checkbox.addEventListener('change', () => {
+                    updatePlayerFilterWarning();
                     criteriaList = buildCriteriaFromUI();
                     saveSettings();
                 });
             }
         });
+        
+        // Initial warning state update
+        updatePlayerFilterWarning();
 
         // Setup slider event listeners
         const sliderPairs = [
@@ -1487,6 +1558,20 @@
             }
             // Initialize Team slider from loaded values
             initializeSlider('autojoin-team-min-slider', 'autojoin-team-max-slider', 'autojoin-team-min', 'autojoin-team-max', 'team-range-fill', 'team-min-value', 'team-max-value');
+            
+            // Update warning visibility after loading settings
+            setTimeout(() => {
+                const warningElement = document.getElementById('team-player-filter-warning');
+                if (warningElement) {
+                    const duosCheckbox = document.getElementById('autojoin-team-duos');
+                    const triosCheckbox = document.getElementById('autojoin-team-trios');
+                    const quadsCheckbox = document.getElementById('autojoin-team-quads');
+                    const hasSpecialMode = (duosCheckbox && duosCheckbox.checked) ||
+                                           (triosCheckbox && triosCheckbox.checked) ||
+                                           (quadsCheckbox && quadsCheckbox.checked);
+                    warningElement.style.display = hasSpecialMode ? 'flex' : 'none';
+                }
+            }, 0);
         }
     }
 
@@ -1580,6 +1665,35 @@
             padding: 10px;
             background: rgba(0, 0, 0, 0.3);
             border-radius: 4px;
+        }
+
+        .player-filter-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid rgba(251, 191, 36, 0.5);
+            border-radius: 4px;
+        }
+
+        .warning-icon {
+            font-size: 1.2em;
+            flex-shrink: 0;
+            line-height: 1.2;
+        }
+
+        .warning-text {
+            flex: 1;
+            color: rgba(251, 191, 36, 0.95);
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .warning-text strong {
+            color: #fbbf24;
+            font-weight: 600;
         }
 
         .player-filter-info {
