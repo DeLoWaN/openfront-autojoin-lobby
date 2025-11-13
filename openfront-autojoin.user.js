@@ -385,7 +385,7 @@
                         if (!notifiedLobbies.has(lobby.gameID)) {
                             console.log('[Auto-Join] Game found (notify mode):', lobby.gameID);
                             showGameFoundNotification(lobby);
-                            playGameFoundSound();
+                            playGameStartSound(); // Boxing ring bell when match is found
                             notifiedLobbies.add(lobby.gameID);
                             // Mark that game was found and stop timer updates
                             gameFoundTime = Date.now();
@@ -414,37 +414,6 @@
         }
     }
 
-    // Play sound notification when game is found
-    function playGameFoundSound() {
-        if (!soundEnabled) return;
-
-        try {
-            // Use Web Audio API to generate a pleasant notification sound
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            // Connect nodes
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            // Configure sound: two-tone chime (upward)
-            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
-            oscillator.frequency.setValueAtTime(554.37, audioContext.currentTime + 0.1); // C#5
-            oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
-
-            // Set volume envelope
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
-            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.4);
-
-            // Play sound
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.4);
-        } catch (error) {
-            console.warn('[Auto-Join] Could not play sound:', error);
-        }
-    }
 
     // Play a single bell ring
     function playSingleBell(audioContext, startTime) {
@@ -507,20 +476,21 @@
         osc3.stop(startTime + 0.6);
     }
 
-    // Play boxing ring bell sound when game starts (three rings: ding ding ding)
+    // Play boxing ring bell sound when a match is found (three rings: ding ding ding)
     function playGameStartSound() {
         if (!soundEnabled) return;
 
         try {
+            // Create audio context (setup separated from play call)
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const now = audioContext.currentTime;
             
-            // Play three bell rings with spacing
+            // Play three bell rings with spacing (triggered when match is found)
             playSingleBell(audioContext, now);           // First ding
             playSingleBell(audioContext, now + 0.3);     // Second ding (0.3s after first)
             playSingleBell(audioContext, now + 0.6);     // Third ding (0.3s after second)
         } catch (error) {
-            console.warn('[Auto-Join] Could not play game start sound:', error);
+            console.warn('[Auto-Join] Could not play match found sound:', error);
         }
     }
 
@@ -673,8 +643,8 @@
         stopTimer();
         updateSearchTimer();
 
-        // Play sound notification
-        playGameFoundSound();
+        // Play sound notification (boxing ring bell when match is found)
+        playGameStartSound();
 
         // Click the button - component will handle join with visual feedback (green highlight)
         lobbyButton.click();
@@ -1962,10 +1932,8 @@
             stopGameInfoUpdates(); // Stop updating game info when not in lobby
             // Dismiss notification when game starts
             dismissNotification();
-            // If we just entered a game, disable auto-join and play sound
+            // If we just entered a game, disable auto-join
             if (!wasInGame) {
-                // Play boxing ring bell sound when game starts
-                playGameStartSound();
                 if (autoJoinEnabled) {
                     console.log('[Auto-Join] Game started, disabling auto-join');
                     autoJoinEnabled = false;
