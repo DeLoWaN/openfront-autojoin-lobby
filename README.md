@@ -2,7 +2,7 @@
 
 A Tampermonkey/Greasemonkey userscript that automatically joins lobbies on OpenFront.io based on your game mode preferences and game capacity filters. Includes a "Notify Only" mode that alerts you when matching games are found without automatically joining.
 
-![Auto-Join Lobby Panel](autojoin-lobby.png)
+<img width="451" height="895" alt="image" src="https://github.com/user-attachments/assets/276003ea-57db-4cff-a180-f4e1d04eefec" />
 
 ## Disclaimer
 
