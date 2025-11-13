@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.4.5
+// @version      1.4.6
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
@@ -1023,12 +1023,12 @@
                 <div class="autojoin-mode-section">
                     <label class="mode-checkbox-label">
                         <input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA">
-                        <span>FFA (Free For All)</span>
+                        <span>FFA</span>
                     </label>
 
                     <div class="autojoin-mode-config" id="ffa-config" style="display: none;">
                         <div class="player-filter-info">
-                            <small>Join games based on game capacity (max players):</small>
+                            <small>Filter by max players:</small>
                         </div>
                         <div class="capacity-range-wrapper">
                             <div class="capacity-range-visual">
@@ -1065,15 +1065,15 @@
 
                     <div class="autojoin-mode-config" id="team-config" style="display: none;">
                         <div class="team-count-section">
-                            <label style="display: block; margin-bottom: 8px;">Number of teams (optional):</label>
-                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                            <label style="display: block; margin-bottom: 4px; font-size: 0.9em;">Teams (optional):</label>
+                            <div style="display: flex; gap: 4px; margin-bottom: 6px;">
                                 <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
                                 <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
                             </div>
                             <div class="team-count-options">
-                                <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos (2 players)</label>
-                                <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios (3 players)</label>
-                                <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads (4 players)</label>
+                                <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
+                                <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
+                                <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
                                 <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
@@ -1086,11 +1086,11 @@
                         <div class="player-filter-warning" id="team-player-filter-warning" style="display: none;">
                             <div class="warning-icon">⚠️</div>
                             <div class="warning-text">
-                                <strong>Note:</strong> Player per team filters do <strong>NOT</strong> apply to Duos, Trios, or Quads modes.
+                                <strong>Note:</strong> Player filters don't apply to Duos/Trios/Quads.
                             </div>
                         </div>
                         <div class="player-filter-info">
-                            <small>Join games based on players per team:</small>
+                            <small>Filter by players per team:</small>
                         </div>
                         <div class="capacity-range-wrapper">
                             <div class="capacity-range-visual">
@@ -1101,11 +1101,11 @@
                                 </div>
                                 <div class="capacity-labels">
                                     <div class="capacity-label-group">
-                                        <label for="autojoin-team-min-slider">Min per team:</label>
+                                        <label for="autojoin-team-min-slider">Min:</label>
                                         <span class="capacity-value" id="team-min-value">Any</span>
                                     </div>
                                     <div class="capacity-label-group">
-                                        <label for="autojoin-team-max-slider">Max per team:</label>
+                                        <label for="autojoin-team-max-slider">Max:</label>
                                         <span class="capacity-value" id="team-max-value">Any</span>
                                     </div>
                                 </div>
@@ -1129,7 +1129,7 @@
                 <div class="autojoin-settings">
                     <label class="sound-toggle-label">
                         <input type="checkbox" id="autojoin-sound-toggle">
-                        <span>🔔 Sound notification</span>
+                        <span>🔔 Sound</span>
                     </label>
                 </div>
             </div>
@@ -1549,15 +1549,15 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            width: 380px;
+            width: 460px;
             max-height: 90vh;
             overflow-y: auto;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #3b82f6;
+            background: rgba(25, 25, 30, 0.85);
+            border: 1px solid rgba(59, 130, 246, 0.4);
             border-radius: 8px;
             padding: 0;
             z-index: 10000;
-            color: white;
+            color: rgba(255, 255, 255, 0.9);
             font-family: sans-serif;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             transition: opacity 0.3s ease, transform 0.3s ease;
@@ -1571,9 +1571,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #3b82f6;
-            padding: 15px 15px 10px 15px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 8px 12px 6px 12px;
             cursor: grab;
             user-select: none;
         }
@@ -1583,12 +1583,13 @@
         }
 
         .autojoin-content {
-            padding: 0 15px 15px 15px;
+            padding: 0 12px 10px 12px;
         }
 
         .autojoin-header h3 {
             margin: 0;
-            font-size: 1.2em;
+            font-size: 1.05em;
+            color: rgba(255, 255, 255, 0.95);
         }
 
         .toggle-switch {
@@ -1642,19 +1643,21 @@
         }
 
         .autojoin-mode-section {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(59, 130, 246, 0.1);
+            margin-bottom: 8px;
+            padding: 6px;
+            background: rgba(59, 130, 246, 0.08);
             border-radius: 4px;
         }
 
         .mode-checkbox-label {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-weight: bold;
             cursor: pointer;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+            color: rgba(255, 255, 255, 0.95);
         }
 
         .mode-checkbox-label input[type="checkbox"] {
@@ -1665,20 +1668,20 @@
 
         .autojoin-mode-config {
             margin-left: 26px;
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.3);
+            margin-top: 6px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 4px;
         }
 
         .player-filter-warning {
             display: flex;
             align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 12px;
-            padding: 10px;
-            background: rgba(251, 191, 36, 0.15);
-            border: 1px solid rgba(251, 191, 36, 0.5);
+            gap: 6px;
+            margin-bottom: 8px;
+            padding: 6px;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
             border-radius: 4px;
         }
 
@@ -1690,50 +1693,50 @@
 
         .warning-text {
             flex: 1;
-            color: rgba(251, 191, 36, 0.95);
+            color: rgba(251, 191, 36, 0.85);
             font-size: 0.9em;
-            line-height: 1.4;
+            line-height: 1.3;
         }
 
         .warning-text strong {
-            color: #fbbf24;
+            color: rgba(251, 191, 36, 0.9);
             font-weight: 600;
         }
 
         .player-filter-info {
-            margin-bottom: 10px;
-            padding: 5px 0;
+            margin-bottom: 6px;
+            padding: 3px 0;
         }
 
         .player-filter-info small {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.85em;
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.9em;
         }
 
         .capacity-range-wrapper {
-            margin-top: 10px;
+            margin-top: 6px;
         }
 
         .capacity-range-visual {
             position: relative;
-            padding: 20px 0 10px 0;
+            padding: 12px 0 6px 0;
         }
 
         .capacity-track {
             position: relative;
             height: 6px;
-            background: rgba(59, 130, 246, 0.3);
+            background: rgba(59, 130, 246, 0.2);
             border-radius: 3px;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
 
         .capacity-range-fill {
             position: absolute;
             height: 100%;
-            background: #3b82f6;
+            background: rgba(59, 130, 246, 0.5);
             border-radius: 3px;
             pointer-events: none;
-            opacity: 0.6;
+            opacity: 0.7;
             transition: left 0.1s ease, width 0.1s ease;
         }
 
@@ -1756,34 +1759,34 @@
             width: 18px;
             height: 18px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: rgba(59, 130, 246, 0.8);
             cursor: pointer;
             pointer-events: all;
-            border: 2px solid white;
+            border: 2px solid rgba(255, 255, 255, 0.9);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             transition: transform 0.1s ease;
         }
 
         .capacity-slider::-webkit-slider-thumb:hover {
             transform: scale(1.1);
-            background: #60a5fa;
+            background: rgba(96, 165, 250, 0.9);
         }
 
         .capacity-slider::-moz-range-thumb {
             width: 18px;
             height: 18px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: rgba(59, 130, 246, 0.8);
             cursor: pointer;
             pointer-events: all;
-            border: 2px solid white;
+            border: 2px solid rgba(255, 255, 255, 0.9);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             transition: transform 0.1s ease;
         }
 
         .capacity-slider::-moz-range-thumb:hover {
             transform: scale(1.1);
-            background: #60a5fa;
+            background: rgba(96, 165, 250, 0.9);
         }
 
         .capacity-slider-min {
@@ -1798,26 +1801,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 10px;
+            margin-top: 6px;
         }
 
         .capacity-label-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 3px;
         }
 
         .capacity-label-group label {
-            font-size: 0.85em;
+            font-size: 0.9em;
             color: rgba(255, 255, 255, 0.8);
             font-weight: normal;
             margin: 0;
         }
 
         .capacity-value {
-            font-size: 1em;
-            color: white;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.95);
             font-weight: 500;
             min-width: 40px;
             text-align: center;
@@ -1873,31 +1876,33 @@
         }
 
         .team-count-section {
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         .team-count-options {
             display: flex;
             flex-direction: column;
-            gap: 5px;
-            margin-top: 5px;
+            gap: 3px;
+            margin-top: 3px;
         }
 
         .team-count-options label {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             cursor: pointer;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .autojoin-status {
-            margin: 15px 0;
-            padding: 10px;
-            background: rgba(59, 130, 246, 0.2);
+            margin: 8px 0;
+            padding: 6px;
+            background: rgba(59, 130, 246, 0.15);
             border-radius: 4px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
@@ -1911,11 +1916,11 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #ef4444;
+            background: rgba(239, 68, 68, 0.8);
         }
 
         .status-indicator.active {
-            background: #10b981;
+            background: rgba(16, 185, 129, 0.8);
             animation: pulse 1s infinite;
         }
 
@@ -1927,36 +1932,36 @@
         .search-timer {
             margin-left: auto;
             font-size: 0.9em;
-            color: #93c5fd;
+            color: rgba(147, 197, 253, 0.9);
             font-weight: 500;
         }
 
         .select-all-btn {
-            background: rgba(59, 130, 246, 0.3);
-            color: white;
-            border: 1px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.4);
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.85em;
-            padding: 4px 10px;
+            padding: 3px 8px;
             flex: 1;
         }
 
         .select-all-btn:hover {
-            background: rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.35);
         }
 
         .autojoin-settings {
-            margin: 15px 0 0 0;
-            padding: 10px;
-            background: rgba(59, 130, 246, 0.1);
+            margin: 8px 0 0 0;
+            padding: 6px;
+            background: rgba(59, 130, 246, 0.08);
             border-radius: 4px;
         }
 
         .sound-toggle-label {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             cursor: pointer;
             font-size: 0.9em;
             color: rgba(255, 255, 255, 0.9);
@@ -1970,18 +1975,18 @@
 
         /* Remove any extra spacing/margins that might cause gray bar */
         .autojoin-status {
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
 
         .current-game-info {
-            margin: 10px 0;
-            padding: 8px 10px;
-            background: rgba(59, 130, 246, 0.15);
+            margin: 6px 0;
+            padding: 5px 8px;
+            background: rgba(59, 130, 246, 0.12);
             border-radius: 4px;
             font-size: 0.9em;
-            color: #93c5fd;
+            color: rgba(147, 197, 253, 0.9);
             text-align: center;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.25);
         }
 
         .current-game-info.not-applicable {
@@ -1993,10 +1998,10 @@
 
         .join-mode-selector {
             display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(59, 130, 246, 0.1);
+            gap: 12px;
+            margin-bottom: 8px;
+            padding: 6px;
+            background: rgba(59, 130, 246, 0.08);
             border-radius: 4px;
             justify-content: center;
         }
@@ -2004,7 +2009,7 @@
         .mode-radio-label {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             cursor: pointer;
             font-size: 0.9em;
             color: rgba(255, 255, 255, 0.9);
