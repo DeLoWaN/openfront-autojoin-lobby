@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.4.4
+// @version      1.4.5
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
@@ -37,6 +37,7 @@
     let recentlyLeftLobbyID = null; // Track lobby ID that was just left to prevent auto-rejoin
     let joinMode = 'autojoin'; // 'autojoin' or 'notify'
     let notifiedLobbies = new Set(); // Track lobbies we've notified about
+    let lastNotifiedGameID = null; // Track the last game we notified about (for timer reset)
     let notificationTimeout = null; // Timeout for auto-dismissing notification
     let gameFoundAudio = null; // Preloaded audio for game found notification
     let gameStartAudio = null; // Preloaded audio for game start bell
@@ -392,6 +393,28 @@
             }
             const lobbies = publicLobby.lobbies;
 
+            // In notify mode, check if we need to reset the timer when a new game appears
+            if (joinMode === 'notify' && gameFoundTime !== null && lastNotifiedGameID !== null) {
+                // Check if the currently displayed lobby is different from the one we notified about
+                const currentLobby = lobbies.length > 0 ? lobbies[0] : null;
+                const currentLobbyID = currentLobby ? currentLobby.gameID : null;
+                
+                // If current lobby is different from the one we notified about, reset timer and continue searching
+                if (currentLobbyID !== lastNotifiedGameID) {
+                    console.log('[Auto-Join] Different game displayed, resuming search timer');
+                    gameFoundTime = null;
+                    lastNotifiedGameID = null;
+                    // Restart timer if it was stopped
+                    if (!timerInterval) {
+                        timerInterval = setInterval(() => {
+                            updateSearchTimer();
+                        }, 1000);
+                    }
+                    updateSearchTimer();
+                    updateUI({ status: null });
+                }
+            }
+
             // Search for a lobby matching criteria
             for (const lobby of lobbies) {
                 // Debug: Log lobby structure once to identify capacity property
@@ -420,6 +443,7 @@
                             notifiedLobbies.add(lobby.gameID);
                             // Mark that game was found and stop timer updates
                             gameFoundTime = Date.now();
+                            lastNotifiedGameID = lobby.gameID;
                             stopTimer();
                             updateSearchTimer();
                             // Update UI status
@@ -669,6 +693,7 @@
 
         searchStartTime = Date.now();
         gameFoundTime = null; // Reset game found time
+        lastNotifiedGameID = null; // Reset last notified game ID
         // Clear notified lobbies when starting new search
         notifiedLobbies.clear();
         updateSearchTimer();
@@ -691,6 +716,7 @@
         stopTimer();
         searchStartTime = null;
         gameFoundTime = null;
+        lastNotifiedGameID = null;
         updateSearchTimer();
         // Dismiss any active notification
         dismissNotification();
@@ -934,13 +960,12 @@
 
     // Update UI based on state
     function updateUI(options = {}) {
-        const toggleBtn = document.getElementById('autojoin-toggle');
+        const toggleSwitch = document.getElementById('autojoin-toggle');
         const statusIndicator = document.querySelector('#autojoin-status .status-indicator');
         const statusText = document.querySelector('#autojoin-status .status-text');
 
-        if (toggleBtn) {
-            toggleBtn.textContent = autoJoinEnabled ? 'ON' : 'OFF';
-            toggleBtn.classList.toggle('active', autoJoinEnabled);
+        if (toggleSwitch) {
+            toggleSwitch.checked = autoJoinEnabled;
         }
 
         if (statusIndicator) {
@@ -975,7 +1000,10 @@
         panel.innerHTML = `
             <div class="autojoin-header" id="autojoin-header-drag">
                 <h3>Auto-Join Lobby</h3>
-                <button id="autojoin-toggle" class="toggle-btn">OFF</button>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autojoin-toggle">
+                    <span class="toggle-slider"></span>
+                </label>
             </div>
 
             <div class="autojoin-content">
@@ -1153,7 +1181,8 @@
         document.addEventListener('mouseup', dragEnd);
 
         function dragStart(e) {
-            if (e.target.id === 'autojoin-toggle') return; // Don't drag when clicking toggle button
+            // Don't drag when clicking toggle switch or its label
+            if (e.target.id === 'autojoin-toggle' || e.target.closest('.toggle-switch')) return;
 
             initialX = e.clientX - xOffset;
             initialY = e.clientY - yOffset;
@@ -1192,11 +1221,11 @@
 
     // Setup event listeners
     function setupEventListeners() {
-        // Toggle button
-        const toggleBtn = document.getElementById('autojoin-toggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-                autoJoinEnabled = !autoJoinEnabled;
+        // Toggle switch
+        const toggleSwitch = document.getElementById('autojoin-toggle');
+        if (toggleSwitch) {
+            toggleSwitch.addEventListener('change', () => {
+                autoJoinEnabled = toggleSwitch.checked;
                 if (autoJoinEnabled) {
                     // Build criteria from UI before starting
                     criteriaList = buildCriteriaFromUI();
@@ -1207,6 +1236,7 @@
                     if (!criteriaList || criteriaList.length === 0) {
                         alert('Please select at least one game mode (FFA or Team) before enabling auto-join!');
                         autoJoinEnabled = false;
+                        toggleSwitch.checked = false;
                         updateUI();
                         return;
                     }
@@ -1217,6 +1247,7 @@
                 } else {
                     stopMonitoring();
                     saveSettings();
+                    updateUI();
                 }
             });
         }
@@ -1393,6 +1424,7 @@
                 notifiedLobbies.clear();
                 // Reset game found time
                 gameFoundTime = null;
+                lastNotifiedGameID = null;
                 // Restart monitoring (this will reset the search timer)
                 stopMonitoring();
                 startMonitoring();
@@ -1559,18 +1591,54 @@
             font-size: 1.2em;
         }
 
-        .toggle-btn {
-            padding: 5px 15px;
-            border: none;
-            border-radius: 4px;
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
             cursor: pointer;
-            font-weight: bold;
-            background: #ef4444;
-            color: white;
         }
 
-        .toggle-btn.active {
-            background: #10b981;
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ef4444;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #10b981;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-switch:hover .toggle-slider {
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
         }
 
         .autojoin-mode-section {
@@ -2043,6 +2111,8 @@
             }
             // Clear notified lobbies when returning to lobby
             notifiedLobbies.clear();
+            lastNotifiedGameID = null;
+            gameFoundTime = null;
             panel.dataset.wasInGame = 'false';
         }
     }
