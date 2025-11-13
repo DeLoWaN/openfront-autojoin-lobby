@@ -137,25 +137,60 @@
             return;
         }
 
-        // Get numeric team count
+        // Get team configuration
         const playerTeams = config.playerTeams;
-        const numericTeamCount = getNumericTeamCount(playerTeams);
-        
-        if (numericTeamCount === null || numericTeamCount === 0) {
-            gameInfoElement.textContent = 'Current game: Team count unknown';
-            gameInfoElement.classList.add('not-applicable');
-            return;
-        }
-
-        // Calculate players per team
-        const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
         
         // Display the info for team games
-        gameInfoElement.textContent = `Current game: ${playersPerTeam} players per team`;
-        gameInfoElement.classList.remove('not-applicable');
+        // For Duos/Trios/Quads, show the mode name directly
+        if (playerTeams === 'Duos') {
+            gameInfoElement.textContent = 'Current game: Duos';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Trios') {
+            gameInfoElement.textContent = 'Current game: Trios';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Quads') {
+            gameInfoElement.textContent = 'Current game: Quads';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (playerTeams === 'Humans Vs Nations') {
+            gameInfoElement.textContent = 'Current game: Humans Vs Nations';
+            gameInfoElement.classList.remove('not-applicable');
+        } else if (typeof playerTeams === 'number') {
+            // For modes with number of teams, show players per team
+            const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+            if (playersPerTeam === null) {
+                gameInfoElement.textContent = 'Current game: Team configuration unknown';
+                gameInfoElement.classList.add('not-applicable');
+                return;
+            }
+            gameInfoElement.textContent = `Current game: ${playersPerTeam} players per team (${playerTeams} teams)`;
+            gameInfoElement.classList.remove('not-applicable');
+        } else {
+            gameInfoElement.textContent = 'Current game: Team configuration unknown';
+            gameInfoElement.classList.add('not-applicable');
+        }
     }
 
-    // Helper function to extract numeric team count from playerTeams
+    // Helper function to get players per team from playerTeams
+    // When playerTeams is a string like 'Quads', 'Trios', 'Duos', it represents players per team directly
+    // When playerTeams is a number, it represents the number of teams, so we calculate players per team
+    function getPlayersPerTeam(playerTeams, gameCapacity) {
+        // String values represent players per team directly
+        if (playerTeams === 'Duos') return 2;
+        if (playerTeams === 'Trios') return 3;
+        if (playerTeams === 'Quads') return 4;
+        if (playerTeams === 'Humans Vs Nations') {
+            // Typically 2 teams, so calculate players per team
+            return Math.floor(gameCapacity / 2);
+        }
+        // Number values represent the number of teams
+        if (typeof playerTeams === 'number' && playerTeams > 0) {
+            return Math.floor(gameCapacity / playerTeams);
+        }
+        return null;
+    }
+
+    // Helper function to extract numeric team count from playerTeams (for matching logic)
+    // This is used to determine the number of teams for filtering purposes
     function getNumericTeamCount(playerTeams) {
         if (typeof playerTeams === 'number') {
             return playerTeams;
@@ -247,36 +282,41 @@
                     }
                 } else if (criteria.gameMode === 'Team') {
                     // For Team games, check based on players per team
-                    if (gameCapacity === null) {
-                        // No capacity info available, skip capacity filtering
-                        return true;
-                    }
-
-                    // Get the numeric team count
+                    // BUT: Duos/Trios/Quads always have 2/3/4 players per team by definition,
+                    // so we skip the players per team filter for these modes
                     const playerTeams = config.playerTeams;
-                    const numericTeamCount = getNumericTeamCount(playerTeams);
+                    const isFixedPlayersPerTeam = playerTeams === 'Duos' || playerTeams === 'Trios' || playerTeams === 'Quads';
                     
-                    if (numericTeamCount === null || numericTeamCount === 0) {
-                        // Cannot determine team count, skip capacity filtering
-                        return true;
-                    }
+                    // Only apply players per team filter for modes with number of teams (2/3/4/5/6/7 teams)
+                    if (!isFixedPlayersPerTeam) {
+                        if (gameCapacity === null) {
+                            // No capacity info available, skip capacity filtering
+                            return true;
+                        }
 
-                    // Calculate players per team (rounded down)
-                    const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
+                        // Get players per team
+                        const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+                        
+                        if (playersPerTeam === null) {
+                            // Cannot determine players per team, skip capacity filtering
+                            return true;
+                        }
 
-                    // Check minPlayers (minimum players per team)
-                    if (criteria.minPlayers !== null && criteria.minPlayers !== undefined) {
-                        if (playersPerTeam < criteria.minPlayers) {
-                            continue; // Players per team is less than minimum required
+                        // Check minPlayers (minimum players per team)
+                        if (criteria.minPlayers !== null && criteria.minPlayers !== undefined) {
+                            if (playersPerTeam < criteria.minPlayers) {
+                                continue; // Players per team is less than minimum required
+                            }
+                        }
+
+                        // Check maxPlayers (maximum players per team)
+                        if (criteria.maxPlayers !== null && criteria.maxPlayers !== undefined) {
+                            if (playersPerTeam > criteria.maxPlayers) {
+                                continue; // Players per team exceeds maximum allowed
+                            }
                         }
                     }
-
-                    // Check maxPlayers (maximum players per team)
-                    if (criteria.maxPlayers !== null && criteria.maxPlayers !== undefined) {
-                        if (playersPerTeam > criteria.maxPlayers) {
-                            continue; // Players per team exceeds maximum allowed
-                        }
-                    }
+                    // For Duos/Trios/Quads, skip players per team filtering (always 2/3/4 by definition)
                 }
 
                 // All criteria satisfied
@@ -542,7 +582,6 @@
             return 'Game Found! FFA';
         } else if (config.gameMode === 'Team') {
             const playerTeams = config.playerTeams;
-            const numericTeamCount = getNumericTeamCount(playerTeams);
             
             let teamCountText = '';
             if (playerTeams === 'Duos') {
@@ -559,10 +598,19 @@
                 teamCountText = 'Team';
             }
 
-            if (gameCapacity !== null && numericTeamCount !== null && numericTeamCount > 0) {
-                const playersPerTeam = Math.floor(gameCapacity / numericTeamCount);
-                return `Game Found! Team (${teamCountText}) - ${playersPerTeam} players per team`;
+            // For Duos/Trios/Quads, just show the mode name (always 2/3/4 players per team)
+            if (playerTeams === 'Duos' || playerTeams === 'Trios' || playerTeams === 'Quads') {
+                return `Game Found! Team (${teamCountText})`;
             }
+            
+            // For modes with number of teams, show players per team
+            if (typeof playerTeams === 'number' && gameCapacity !== null) {
+                const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
+                if (playersPerTeam !== null) {
+                    return `Game Found! Team (${teamCountText}) - ${playersPerTeam} players per team`;
+                }
+            }
+            
             return `Game Found! Team (${teamCountText})`;
         }
 
@@ -1078,7 +1126,7 @@
                             </div>
                         </div>
                         <div class="player-filter-info">
-                            <small>Join games based on players per team:</small>
+                            <small>Join games based on players per team (applies only to 2/3/4/5/6/7 teams modes, not Duos/Trios/Quads):</small>
                         </div>
                         <div class="capacity-range-wrapper">
                             <div class="capacity-range-visual">
