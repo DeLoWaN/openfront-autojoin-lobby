@@ -119,7 +119,7 @@ Tested and 100% functional against OpenFront v0.26.16
 
 5. **Configure Sound Notification (Optional)**
    - Check/uncheck the "🔔 Sound notification" checkbox to enable/disable sound alerts
-   - When enabled, a pleasant chime sound plays when a matching game is found
+   - When enabled, a boxing ring bell sound (three rings: ding ding ding) plays when a matching game is found
    - Sound setting is saved and persists across page reloads
 
 6. **Enable Auto-Join / Notify**
@@ -180,7 +180,7 @@ These can be modified in the script's `CONFIG` object if needed.
 - **Join Method**: Clicks the join button programmatically (provides visual feedback)
 - **URL Detection**: Uses URL-based detection to determine game state (lobby vs. in-game)
 - **Polling**: Checks for matching lobbies every 1 second when enabled
-- **Sound Notification**: Uses Web Audio API to generate a pleasant three-tone chime when a match is found
+- **Sound Notification**: Uses Web Audio API to generate a boxing ring bell sound (three rings: ding ding ding) when a match is found
 - **Notification System**: In Notify Only mode, displays a prominent banner notification with game details, auto-dismisses after 10 seconds, and tracks notified lobbies to prevent duplicates
 - **UI Components**: Uses HTML5 range sliders with visual track fill for capacity selection
 - **Game Info Display**: Real-time display of players per team for team games, updating every second
@@ -188,7 +188,7 @@ These can be modified in the script's `CONFIG` object if needed.
 
 ## Version
 
-Current version: **1.4.1**
+Current version: **1.4.2**
 
 ## Author
 
