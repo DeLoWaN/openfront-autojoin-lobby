@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenFrontIO Auto-Join Lobby
 // @namespace    http://tampermonkey.net/
-// @version      1.4.6
+// @version      1.4.7
 // @description  Auto-join lobbies based on game mode preferences (FFA, Team with all team configurations, player filters). Tested and 100% functional against OpenFront v0.26.16
 // @author       DeLoVaN
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
@@ -24,7 +24,7 @@
     };
 
     // State
-    let autoJoinEnabled = false; // Always start with OFF
+    let autoJoinEnabled = true; // Always start with ON (search active by default)
     let criteriaList = []; // List of criteria (can contain multiple modes)
     let monitoringInterval = null;
     let timerInterval = null;
@@ -35,7 +35,7 @@
     let isJoining = false; // Prevent concurrent join attempts
     let soundEnabled = true; // Sound notification enabled by default
     let recentlyLeftLobbyID = null; // Track lobby ID that was just left to prevent auto-rejoin
-    let joinMode = 'autojoin'; // 'autojoin' or 'notify'
+    let joinMode = 'notify'; // 'autojoin' or 'notify' - default to 'notify'
     let notifiedLobbies = new Set(); // Track lobbies we've notified about
     let lastNotifiedGameID = null; // Track the last game we notified about (for timer reset)
     let notificationTimeout = null; // Timeout for auto-dismissing notification
@@ -46,11 +46,11 @@
     function loadSettings() {
         const saved = GM_getValue('autoJoinSettings', null);
         if (saved) {
-            // Always start with auto-join OFF, even if it was saved as enabled
-            autoJoinEnabled = false;
+            // Always keep search enabled
+            autoJoinEnabled = true;
             criteriaList = saved.criteria || [];
             soundEnabled = saved.soundEnabled !== undefined ? saved.soundEnabled : true;
-            joinMode = saved.joinMode || 'autojoin'; // Default to 'autojoin' for backward compatibility
+            joinMode = saved.joinMode || 'notify'; // Default to 'notify'
         }
     }
 
@@ -154,9 +154,6 @@
         } else if (playerTeams === 'Quads') {
             gameInfoElement.textContent = 'Current game: Quads';
             gameInfoElement.classList.remove('not-applicable');
-        } else if (playerTeams === 'Humans Vs Nations') {
-            gameInfoElement.textContent = 'Current game: Humans Vs Nations';
-            gameInfoElement.classList.remove('not-applicable');
         } else if (typeof playerTeams === 'number') {
             // For modes with number of teams, show players per team
             const playersPerTeam = getPlayersPerTeam(playerTeams, gameCapacity);
@@ -181,10 +178,6 @@
         if (playerTeams === 'Duos') return 2;
         if (playerTeams === 'Trios') return 3;
         if (playerTeams === 'Quads') return 4;
-        if (playerTeams === 'Humans Vs Nations') {
-            // Typically 2 teams, so calculate players per team
-            return Math.floor(gameCapacity / 2);
-        }
         // Number values represent the number of teams
         if (typeof playerTeams === 'number' && playerTeams > 0) {
             return Math.floor(gameCapacity / playerTeams);
@@ -234,10 +227,6 @@
                         }
                     } else if (criteria.teamCount === 'Quads') {
                         if (playerTeams !== 'Quads') {
-                            continue;
-                        }
-                    } else if (criteria.teamCount === 'Humans Vs Nations') {
-                        if (playerTeams !== 'Humans Vs Nations') {
                             continue;
                         }
                     } else if (typeof criteria.teamCount === 'number') {
@@ -401,7 +390,6 @@
                 
                 // If current lobby is different from the one we notified about, reset timer and continue searching
                 if (currentLobbyID !== lastNotifiedGameID) {
-                    console.log('[Auto-Join] Different game displayed, resuming search timer');
                     gameFoundTime = null;
                     lastNotifiedGameID = null;
                     // Restart timer if it was stopped
@@ -417,16 +405,6 @@
 
             // Search for a lobby matching criteria
             for (const lobby of lobbies) {
-                // Debug: Log lobby structure once to identify capacity property
-                if (lobbies.indexOf(lobby) === 0 && lobbies.length > 0) {
-                    console.log('[Auto-Join] Debug - Lobby structure:', {
-                        lobbyKeys: Object.keys(lobby),
-                        gameConfigKeys: lobby.gameConfig ? Object.keys(lobby.gameConfig) : null,
-                        maxClients: lobby.maxClients,
-                        configMaxClients: lobby.gameConfig?.maxClients,
-                        configMaxPlayers: lobby.gameConfig?.maxPlayers
-                    });
-                }
 
                 if (matchesCriteria(lobby, criteriaList)) {
                     // Skip if this is the lobby we just left (permanently block auto-rejoin)
@@ -437,7 +415,6 @@
                     if (joinMode === 'notify') {
                         // Notify mode: show notification instead of joining
                         if (!notifiedLobbies.has(lobby.gameID)) {
-                            console.log('[Auto-Join] Game found (notify mode):', lobby.gameID);
                             showGameFoundNotification(lobby);
                             playGameFoundSound(); // Chime when match is found
                             notifiedLobbies.add(lobby.gameID);
@@ -454,7 +431,6 @@
                         // Auto-join mode: existing behavior
                         // Check we haven't already joined this lobby
                         if (!joinedLobbies.has(lobby.gameID)) {
-                            console.log('[Auto-Join] Joining lobby:', lobby.gameID);
                             joinLobby(lobby);
                             joinedLobbies.add(lobby.gameID);
                             // Clear recently left lobby ID since we're joining a different one
@@ -481,7 +457,6 @@
             gameStartAudio.volume = 0.5;
             gameStartAudio.preload = 'auto';
             
-            console.log('[Auto-Join] Audio files preloaded');
         } catch (error) {
             console.warn('[Auto-Join] Could not preload audio files:', error);
         }
@@ -539,8 +514,6 @@
                 teamCountText = 'Trios';
             } else if (playerTeams === 'Quads') {
                 teamCountText = 'Quads';
-            } else if (playerTeams === 'Humans Vs Nations') {
-                teamCountText = 'Humans Vs Nations';
             } else if (typeof playerTeams === 'number') {
                 teamCountText = `${playerTeams} teams`;
             } else {
@@ -638,7 +611,6 @@
     function joinLobby(lobby) {
         // Prevent concurrent joins
         if (isJoining) {
-            console.log('[Auto-Join] Already joining a lobby, skipping');
             return;
         }
 
@@ -648,7 +620,6 @@
 
         // Only join if we can click the button (lobby must be displayed and button enabled)
         if (!publicLobby || !lobbyButton || lobbyButton.disabled) {
-            console.log('[Auto-Join] Cannot join: button not available or disabled');
             // Remove from joinedLobbies so we can retry later
             joinedLobbies.delete(lobby.gameID);
             return;
@@ -657,7 +628,6 @@
         // Get current displayed lobby (public-lobby shows lobbies[0])
         const currentLobby = publicLobby.lobbies?.[0];
         if (!currentLobby || currentLobby.gameID !== lobby.gameID) {
-            console.log('[Auto-Join] Cannot join: lobby not displayed (waiting for it to appear)');
             // Remove from joinedLobbies so we can retry when it becomes visible
             joinedLobbies.delete(lobby.gameID);
             return;
@@ -665,7 +635,6 @@
 
         // All conditions met - proceed with join
         isJoining = true;
-        console.log('[Auto-Join] Joining lobby:', lobby.gameID);
 
         // Mark that game was found and stop timer updates
         gameFoundTime = Date.now();
@@ -685,6 +654,36 @@
         setTimeout(() => {
             isJoining = false;
         }, 2000);
+    }
+
+    // Try to auto-start search if conditions are met
+    function tryAutoStartSearch() {
+        // Only auto-start if:
+        // 1. We're in lobby
+        // 2. Search is enabled
+        // 3. We have valid criteria
+        // 4. We're not already monitoring
+        if (!isOnLobbyPage()) {
+            return;
+        }
+
+        if (!autoJoinEnabled) {
+            return;
+        }
+
+        // Build criteria from UI
+        criteriaList = buildCriteriaFromUI();
+
+        if (!criteriaList || criteriaList.length === 0) {
+            return;
+        }
+
+        // Start monitoring if not already running
+        if (!monitoringInterval) {
+            startMonitoring();
+            saveSettings();
+            updateUI();
+        }
     }
 
     // Start monitoring lobbies
@@ -855,11 +854,29 @@
         return isNaN(value) ? null : value;
     }
 
+    // Helper function to update mode label styles
+    function updateModeLabels(isAutoJoin) {
+        const labelLeft = document.querySelector('.mode-label-left');
+        const labelRight = document.querySelector('.mode-label-right');
+        if (labelLeft && labelRight) {
+            if (isAutoJoin) {
+                labelLeft.style.opacity = '0.6';
+                labelLeft.style.color = 'rgba(255, 255, 255, 0.7)';
+                labelRight.style.opacity = '1';
+                labelRight.style.color = 'rgba(255, 255, 255, 0.95)';
+            } else {
+                labelLeft.style.opacity = '1';
+                labelLeft.style.color = 'rgba(255, 255, 255, 0.95)';
+                labelRight.style.opacity = '0.6';
+                labelRight.style.color = 'rgba(255, 255, 255, 0.7)';
+            }
+        }
+    }
+
     // Get all selected team counts from UI (returns array)
     function getAllTeamCountValues() {
         const selectedCounts = [];
         const teamCountIds = [
-            { id: 'autojoin-team-hvn', value: 'Humans Vs Nations' },
             { id: 'autojoin-team-duos', value: 'Duos' },
             { id: 'autojoin-team-trios', value: 'Trios' },
             { id: 'autojoin-team-quads', value: 'Quads' },
@@ -887,22 +904,11 @@
             'autojoin-team-2', 'autojoin-team-3', 'autojoin-team-4', 'autojoin-team-5',
             'autojoin-team-6', 'autojoin-team-7', 'autojoin-team-duos', 'autojoin-team-trios',
             'autojoin-team-quads'
-            // 'autojoin-team-hvn' removed from UI (code kept for potential reactivation)
         ];
         checkboxes.forEach(id => {
             const checkbox = document.getElementById(id);
             if (checkbox) checkbox.checked = checked;
         });
-    }
-
-    // Select all team count checkboxes (Humans Vs Nations excluded from UI)
-    function selectAllTeamCounts() {
-        setAllTeamCounts(true);
-    }
-
-    // Deselect all team count checkboxes (Humans Vs Nations excluded from UI)
-    function deselectAllTeamCounts() {
-        setAllTeamCounts(false);
     }
 
     // Build criteria list from UI
@@ -960,27 +966,21 @@
 
     // Update UI based on state
     function updateUI(options = {}) {
-        const toggleSwitch = document.getElementById('autojoin-toggle');
         const statusIndicator = document.querySelector('#autojoin-status .status-indicator');
         const statusText = document.querySelector('#autojoin-status .status-text');
 
-        if (toggleSwitch) {
-            toggleSwitch.checked = autoJoinEnabled;
-        }
-
         if (statusIndicator) {
-            statusIndicator.classList.toggle('active', autoJoinEnabled);
+            // Always show as active (search is always on)
+            statusIndicator.classList.add('active');
         }
 
         if (statusText) {
-            // Only show "Joined" if explicitly set and auto-join is still enabled
-            if (options.status === 'joined' && autoJoinEnabled) {
+            // Show "Joined" if explicitly set
+            if (options.status === 'joined') {
                 statusText.textContent = 'Joined';
-            } else if (autoJoinEnabled) {
+            } else {
                 // In notify mode, always show "Searching" (timer will show "Game found!" when applicable)
                 statusText.textContent = joinMode === 'notify' ? 'Searching' : 'Active';
-            } else {
-                statusText.textContent = 'Inactive';
             }
         }
 
@@ -1000,23 +1000,17 @@
         panel.innerHTML = `
             <div class="autojoin-header" id="autojoin-header-drag">
                 <h3>Auto-Join Lobby</h3>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="autojoin-toggle">
-                    <span class="toggle-slider"></span>
-                </label>
             </div>
 
             <div class="autojoin-content">
                 <!-- Mode Selector -->
                 <div class="join-mode-selector">
-                    <label class="mode-radio-label">
-                        <input type="radio" name="joinMode" value="autojoin" id="join-mode-autojoin" checked>
-                        <span>Auto-Join</span>
+                    <span class="mode-label-left">Notify Only</span>
+                    <label class="mode-toggle-switch">
+                        <input type="checkbox" id="join-mode-toggle">
+                        <span class="mode-toggle-slider"></span>
                     </label>
-                    <label class="mode-radio-label">
-                        <input type="radio" name="joinMode" value="notify" id="join-mode-notify">
-                        <span>Notify Only</span>
-                    </label>
+                    <span class="mode-label-right">Auto-Join</span>
                 </div>
 
                 <!-- FFA Section -->
@@ -1064,55 +1058,64 @@
                     </label>
 
                     <div class="autojoin-mode-config" id="team-config" style="display: none;">
-                        <div class="team-count-section">
-                            <label style="display: block; margin-bottom: 4px; font-size: 0.9em;">Teams (optional):</label>
-                            <div style="display: flex; gap: 4px; margin-bottom: 6px;">
-                                <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
-                                <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
+                        <!-- Fixed Team Modes (Duos/Trios/Quads) - No player filters -->
+                        <div class="team-mode-panel fixed-modes-panel">
+                            <div class="panel-header">
+                                <label style="display: block; margin-bottom: 6px; font-size: 0.9em; font-weight: 600;">Fixed Team Modes (Duos/Trios/Quads):</label>
+                                <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                                    <button type="button" id="autojoin-fixed-select-all" class="select-all-btn">Select All</button>
+                                    <button type="button" id="autojoin-fixed-deselect-all" class="select-all-btn">Deselect All</button>
+                                </div>
                             </div>
                             <div class="team-count-options">
                                 <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
                                 <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
                                 <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
+                            </div>
+                        </div>
+
+                        <!-- Variable Team Counts (2-7 teams) - With player filters -->
+                        <div class="team-mode-panel variable-modes-panel">
+                            <div class="panel-header">
+                                <label style="display: block; margin-bottom: 6px; font-size: 0.9em; font-weight: 600;">Variable Team Counts (2-7 teams):</label>
+                                <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                                    <button type="button" id="autojoin-variable-select-all" class="select-all-btn">Select All</button>
+                                    <button type="button" id="autojoin-variable-deselect-all" class="select-all-btn">Deselect All</button>
+                                </div>
+                            </div>
+                            <div class="team-count-options">
                                 <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-5" value="5"> 5 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
                                 <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
-                                <!-- Humans Vs Nations removed from UI (code kept for potential reactivation) -->
                             </div>
-                        </div>
-                        <div class="player-filter-warning" id="team-player-filter-warning" style="display: none;">
-                            <div class="warning-icon">⚠️</div>
-                            <div class="warning-text">
-                                <strong>Note:</strong> Player filters don't apply to Duos/Trios/Quads.
+                            <div class="player-filter-info">
+                                <small>Filter by players per team:</small>
                             </div>
-                        </div>
-                        <div class="player-filter-info">
-                            <small>Filter by players per team:</small>
-                        </div>
-                        <div class="capacity-range-wrapper">
-                            <div class="capacity-range-visual">
-                                <div class="capacity-track">
-                                    <div class="capacity-range-fill" id="team-range-fill"></div>
-                                    <input type="range" id="autojoin-team-min-slider" min="0" max="50" value="0" class="capacity-slider capacity-slider-min">
-                                    <input type="range" id="autojoin-team-max-slider" min="0" max="50" value="50" class="capacity-slider capacity-slider-max">
-                                </div>
-                                <div class="capacity-labels">
-                                    <div class="capacity-label-group">
-                                        <label for="autojoin-team-min-slider">Min:</label>
-                                        <span class="capacity-value" id="team-min-value">Any</span>
+                            <div class="capacity-range-wrapper">
+                                <div class="capacity-range-visual">
+                                    <div class="capacity-track">
+                                        <div class="capacity-range-fill" id="team-range-fill"></div>
+                                        <input type="range" id="autojoin-team-min-slider" min="0" max="50" value="0" class="capacity-slider capacity-slider-min">
+                                        <input type="range" id="autojoin-team-max-slider" min="0" max="50" value="50" class="capacity-slider capacity-slider-max">
                                     </div>
-                                    <div class="capacity-label-group">
-                                        <label for="autojoin-team-max-slider">Max:</label>
-                                        <span class="capacity-value" id="team-max-value">Any</span>
+                                    <div class="capacity-labels">
+                                        <div class="capacity-label-group">
+                                            <label for="autojoin-team-min-slider">Min:</label>
+                                            <span class="capacity-value" id="team-min-value">Any</span>
+                                        </div>
+                                        <div class="capacity-label-group">
+                                            <label for="autojoin-team-max-slider">Max:</label>
+                                            <span class="capacity-value" id="team-max-value">Any</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="capacity-inputs-hidden">
-                                <input type="number" id="autojoin-team-min" min="0" max="50" style="display: none;">
-                                <input type="number" id="autojoin-team-max" min="0" max="50" style="display: none;">
+                                <div class="capacity-inputs-hidden">
+                                    <input type="number" id="autojoin-team-min" min="0" max="50" style="display: none;">
+                                    <input type="number" id="autojoin-team-max" min="0" max="50" style="display: none;">
+                                </div>
                             </div>
                         </div>
                         <div class="current-game-info" id="current-game-info" style="display: none;"></div>
@@ -1122,7 +1125,7 @@
                 <div class="autojoin-status" id="autojoin-status">
                     <span class="status-label">Status:</span>
                     <span class="status-indicator"></span>
-                    <span class="status-text">Inactive</span>
+                    <span class="status-text">Searching</span>
                     <span class="search-timer" id="search-timer" style="display: none;"></span>
                 </div>
 
@@ -1152,6 +1155,11 @@
 
         // Update UI
         updateUI();
+
+        // Auto-start search if criteria exist and we're in lobby
+        setTimeout(() => {
+            tryAutoStartSearch();
+        }, 500); // Small delay to ensure page is ready
     }
 
     // Make panel draggable
@@ -1181,8 +1189,6 @@
         document.addEventListener('mouseup', dragEnd);
 
         function dragStart(e) {
-            // Don't drag when clicking toggle switch or its label
-            if (e.target.id === 'autojoin-toggle' || e.target.closest('.toggle-switch')) return;
 
             initialX = e.clientX - xOffset;
             initialY = e.clientY - yOffset;
@@ -1221,36 +1227,6 @@
 
     // Setup event listeners
     function setupEventListeners() {
-        // Toggle switch
-        const toggleSwitch = document.getElementById('autojoin-toggle');
-        if (toggleSwitch) {
-            toggleSwitch.addEventListener('change', () => {
-                autoJoinEnabled = toggleSwitch.checked;
-                if (autoJoinEnabled) {
-                    // Build criteria from UI before starting
-                    criteriaList = buildCriteriaFromUI();
-
-                    console.log('[Auto-Join] Starting with criteria:', { criteriaList });
-
-                    // Validate that we have at least one criterion
-                    if (!criteriaList || criteriaList.length === 0) {
-                        alert('Please select at least one game mode (FFA or Team) before enabling auto-join!');
-                        autoJoinEnabled = false;
-                        toggleSwitch.checked = false;
-                        updateUI();
-                        return;
-                    }
-
-                    saveSettings();
-                    startMonitoring();
-                    updateUI();
-                } else {
-                    stopMonitoring();
-                    saveSettings();
-                    updateUI();
-                }
-            });
-        }
 
         // FFA checkbox - show/hide config
         const ffaCheckbox = document.getElementById('autojoin-ffa');
@@ -1260,6 +1236,8 @@
                 ffaConfig.style.display = ffaCheckbox.checked ? 'block' : 'none';
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
+                // Auto-start search if criteria are valid and we're in lobby
+                tryAutoStartSearch();
             });
         }
 
@@ -1271,44 +1249,65 @@
                 teamConfig.style.display = teamCheckbox.checked ? 'block' : 'none';
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
+                // Auto-start search if criteria are valid and we're in lobby
+                tryAutoStartSearch();
             });
         }
 
-        // Select All / Deselect All buttons for team counts
-        const selectAllBtn = document.getElementById('autojoin-team-select-all');
-        const deselectAllBtn = document.getElementById('autojoin-team-deselect-all');
-        if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => {
-                selectAllTeamCounts();
-                updatePlayerFilterWarning();
+        // Select All / Deselect All buttons for fixed modes (Duos/Trios/Quads)
+        const fixedSelectAllBtn = document.getElementById('autojoin-fixed-select-all');
+        const fixedDeselectAllBtn = document.getElementById('autojoin-fixed-deselect-all');
+        if (fixedSelectAllBtn) {
+            fixedSelectAllBtn.addEventListener('click', () => {
+                const checkboxes = ['autojoin-team-duos', 'autojoin-team-trios', 'autojoin-team-quads'];
+                checkboxes.forEach(id => {
+                    const checkbox = document.getElementById(id);
+                    if (checkbox) checkbox.checked = true;
+                });
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
+                tryAutoStartSearch();
             });
         }
-        if (deselectAllBtn) {
-            deselectAllBtn.addEventListener('click', () => {
-                deselectAllTeamCounts();
-                updatePlayerFilterWarning();
+        if (fixedDeselectAllBtn) {
+            fixedDeselectAllBtn.addEventListener('click', () => {
+                const checkboxes = ['autojoin-team-duos', 'autojoin-team-trios', 'autojoin-team-quads'];
+                checkboxes.forEach(id => {
+                    const checkbox = document.getElementById(id);
+                    if (checkbox) checkbox.checked = false;
+                });
                 criteriaList = buildCriteriaFromUI();
                 saveSettings();
+                tryAutoStartSearch();
             });
         }
 
-        // Function to update player filter warning visibility
-        function updatePlayerFilterWarning() {
-            const warningElement = document.getElementById('team-player-filter-warning');
-            if (!warningElement) return;
-            
-            // Check if any of Duos/Trios/Quads are selected
-            const duosCheckbox = document.getElementById('autojoin-team-duos');
-            const triosCheckbox = document.getElementById('autojoin-team-trios');
-            const quadsCheckbox = document.getElementById('autojoin-team-quads');
-            
-            const hasSpecialMode = (duosCheckbox && duosCheckbox.checked) ||
-                                   (triosCheckbox && triosCheckbox.checked) ||
-                                   (quadsCheckbox && quadsCheckbox.checked);
-            
-            warningElement.style.display = hasSpecialMode ? 'flex' : 'none';
+        // Select All / Deselect All buttons for variable modes (2-7 teams)
+        const variableSelectAllBtn = document.getElementById('autojoin-variable-select-all');
+        const variableDeselectAllBtn = document.getElementById('autojoin-variable-deselect-all');
+        if (variableSelectAllBtn) {
+            variableSelectAllBtn.addEventListener('click', () => {
+                const checkboxes = ['autojoin-team-2', 'autojoin-team-3', 'autojoin-team-4', 'autojoin-team-5', 'autojoin-team-6', 'autojoin-team-7'];
+                checkboxes.forEach(id => {
+                    const checkbox = document.getElementById(id);
+                    if (checkbox) checkbox.checked = true;
+                });
+                criteriaList = buildCriteriaFromUI();
+                saveSettings();
+                tryAutoStartSearch();
+            });
+        }
+        if (variableDeselectAllBtn) {
+            variableDeselectAllBtn.addEventListener('click', () => {
+                const checkboxes = ['autojoin-team-2', 'autojoin-team-3', 'autojoin-team-4', 'autojoin-team-5', 'autojoin-team-6', 'autojoin-team-7'];
+                checkboxes.forEach(id => {
+                    const checkbox = document.getElementById(id);
+                    if (checkbox) checkbox.checked = false;
+                });
+                criteriaList = buildCriteriaFromUI();
+                saveSettings();
+                tryAutoStartSearch();
+            });
         }
 
         // Listen to all team count checkbox changes
@@ -1321,15 +1320,12 @@
             const checkbox = document.getElementById(id);
             if (checkbox) {
                 checkbox.addEventListener('change', () => {
-                    updatePlayerFilterWarning();
                     criteriaList = buildCriteriaFromUI();
                     saveSettings();
+                    tryAutoStartSearch();
                 });
             }
         });
-        
-        // Initial warning state update
-        updatePlayerFilterWarning();
 
         // Setup slider event listeners
         const sliderPairs = [
@@ -1362,6 +1358,7 @@
                     updateSliderRange(pair.minSlider, pair.maxSlider, pair.minInput, pair.maxInput, pair.fill, pair.minValue, pair.maxValue);
                     criteriaList = buildCriteriaFromUI();
                     saveSettings();
+                    tryAutoStartSearch();
                 });
             }
 
@@ -1370,6 +1367,7 @@
                     updateSliderRange(pair.minSlider, pair.maxSlider, pair.minInput, pair.maxInput, pair.fill, pair.minValue, pair.maxValue);
                     criteriaList = buildCriteriaFromUI();
                     saveSettings();
+                    tryAutoStartSearch();
                 });
             }
         });
@@ -1384,21 +1382,27 @@
             });
         }
 
-        // Mode selector radio buttons
-        const modeRadios = document.querySelectorAll('input[name="joinMode"]');
-        modeRadios.forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                joinMode = e.target.value;
+        // Mode selector toggle
+        const modeToggle = document.getElementById('join-mode-toggle');
+        if (modeToggle) {
+            modeToggle.addEventListener('change', (e) => {
+                joinMode = e.target.checked ? 'autojoin' : 'notify';
+                updateModeLabels(e.target.checked);
                 saveSettings();
+                // Restart search if already running to apply mode change
+                if (autoJoinEnabled && monitoringInterval) {
+                    stopMonitoring();
+                    startMonitoring();
+                }
                 // Update UI to reflect mode change
                 updateUI();
             });
-        });
+        }
+        
 
         // Listen for leave-lobby event - restart search when user manually leaves
         document.addEventListener('leave-lobby', () => {
             if (autoJoinEnabled) {
-                console.log('[Auto-Join] Lobby left manually, restarting search');
                 // Get the lobby ID that was just left
                 // Try to get it from the current lobby display first
                 let leftLobbyID = null;
@@ -1416,7 +1420,6 @@
                 }
                 if (leftLobbyID) {
                     recentlyLeftLobbyID = leftLobbyID;
-                    console.log('[Auto-Join] Tracking left lobby ID (permanently blocked from auto-rejoin):', recentlyLeftLobbyID);
                 }
                 // Clear joined lobbies to allow rejoining other lobbies
                 joinedLobbies.clear();
@@ -1437,14 +1440,10 @@
     // Load settings into UI
     function loadUIFromSettings() {
         // Load join mode
-        const autojoinRadio = document.getElementById('join-mode-autojoin');
-        const notifyRadio = document.getElementById('join-mode-notify');
-        if (autojoinRadio && notifyRadio) {
-            if (joinMode === 'notify') {
-                notifyRadio.checked = true;
-            } else {
-                autojoinRadio.checked = true;
-            }
+        const modeToggle = document.getElementById('join-mode-toggle');
+        if (modeToggle) {
+            modeToggle.checked = joinMode === 'autojoin';
+            updateModeLabels(joinMode === 'autojoin');
         }
 
         // Load criteria into UI
@@ -1502,10 +1501,6 @@
                     } else if (criteria.teamCount === 'Quads') {
                         const checkbox = document.getElementById('autojoin-team-quads');
                         if (checkbox) checkbox.checked = true;
-                    } else if (criteria.teamCount === 'Humans Vs Nations') {
-                        // Humans Vs Nations removed from UI, but code kept for potential reactivation
-                        const checkbox = document.getElementById('autojoin-team-hvn');
-                        if (checkbox) checkbox.checked = true;
                     } else if (typeof criteria.teamCount === 'number') {
                         const checkbox = document.getElementById(`autojoin-team-${criteria.teamCount}`);
                         if (checkbox) checkbox.checked = true;
@@ -1526,20 +1521,6 @@
             }
             // Initialize Team slider from loaded values
             initializeSlider('autojoin-team-min-slider', 'autojoin-team-max-slider', 'autojoin-team-min', 'autojoin-team-max', 'team-range-fill', 'team-min-value', 'team-max-value');
-            
-            // Update warning visibility after loading settings
-            setTimeout(() => {
-                const warningElement = document.getElementById('team-player-filter-warning');
-                if (warningElement) {
-                    const duosCheckbox = document.getElementById('autojoin-team-duos');
-                    const triosCheckbox = document.getElementById('autojoin-team-trios');
-                    const quadsCheckbox = document.getElementById('autojoin-team-quads');
-                    const hasSpecialMode = (duosCheckbox && duosCheckbox.checked) ||
-                                           (triosCheckbox && triosCheckbox.checked) ||
-                                           (quadsCheckbox && quadsCheckbox.checked);
-                    warningElement.style.display = hasSpecialMode ? 'flex' : 'none';
-                }
-            }, 0);
         }
     }
 
@@ -1592,55 +1573,6 @@
             color: rgba(255, 255, 255, 0.95);
         }
 
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 26px;
-            cursor: pointer;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ef4444;
-            transition: 0.3s;
-            border-radius: 26px;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: 0.3s;
-            border-radius: 50%;
-        }
-
-        .toggle-switch input:checked + .toggle-slider {
-            background-color: #10b981;
-        }
-
-        .toggle-switch input:checked + .toggle-slider:before {
-            transform: translateX(24px);
-        }
-
-        .toggle-switch:hover .toggle-slider {
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-        }
 
         .autojoin-mode-section {
             margin-bottom: 8px;
@@ -1674,34 +1606,6 @@
             border-radius: 4px;
         }
 
-        .player-filter-warning {
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-            margin-bottom: 8px;
-            padding: 6px;
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            border-radius: 4px;
-        }
-
-        .warning-icon {
-            font-size: 1.2em;
-            flex-shrink: 0;
-            line-height: 1.2;
-        }
-
-        .warning-text {
-            flex: 1;
-            color: rgba(251, 191, 36, 0.85);
-            font-size: 0.9em;
-            line-height: 1.3;
-        }
-
-        .warning-text strong {
-            color: rgba(251, 191, 36, 0.9);
-            font-weight: 600;
-        }
 
         .player-filter-info {
             margin-bottom: 6px;
@@ -1830,52 +1734,28 @@
             display: none;
         }
 
-        .player-range {
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
 
-        .player-range label {
-            flex: 0 0 auto;
-            min-width: 70px;
-        }
-
-        .player-range input.player-input {
-            flex: 0 0 auto;
-            width: 80px;
-            padding: 5px;
-            border: 1px solid #3b82f6;
+        .team-mode-panel {
+            margin-bottom: 12px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.15);
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-size: 0.9em;
+            border: 1px solid rgba(59, 130, 246, 0.2);
         }
 
-        .player-range input.player-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.85em;
+        .team-mode-panel:last-child {
+            margin-bottom: 0;
         }
 
-        .player-hint {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.85em;
-            flex: 0 0 auto;
+        .fixed-modes-panel {
+            border-color: rgba(147, 197, 253, 0.3);
         }
 
-        /* Fallback for number inputs without class */
-        .player-range input[type="number"]:not(.player-input) {
-            flex: 1;
-            max-width: 80px;
-            padding: 5px;
-            border: 1px solid #3b82f6;
-            border-radius: 4px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
+        .variable-modes-panel {
+            border-color: rgba(16, 185, 129, 0.3);
         }
 
-        .team-count-section {
+        .panel-header {
             margin-bottom: 6px;
         }
 
@@ -1923,6 +1803,7 @@
             background: rgba(16, 185, 129, 0.8);
             animation: pulse 1s infinite;
         }
+
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -1998,7 +1879,8 @@
 
         .join-mode-selector {
             display: flex;
-            gap: 12px;
+            align-items: center;
+            gap: 10px;
             margin-bottom: 8px;
             padding: 6px;
             background: rgba(59, 130, 246, 0.08);
@@ -2006,21 +1888,73 @@
             justify-content: center;
         }
 
-        .mode-radio-label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
+        .mode-label-left,
+        .mode-label-right {
             font-size: 0.9em;
             color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
             user-select: none;
+            transition: opacity 0.3s, color 0.3s;
         }
 
-        .mode-radio-label input[type="radio"] {
-            width: 16px;
-            height: 16px;
+        .mode-label-left {
+            opacity: 1;
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .mode-label-right {
+            opacity: 0.6;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .mode-toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
             cursor: pointer;
-            accent-color: #3b82f6;
+        }
+
+        .mode-toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .mode-toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(59, 130, 246, 0.3);
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .mode-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .mode-toggle-switch input:checked + .mode-toggle-slider {
+            background-color: rgba(16, 185, 129, 0.6);
+        }
+
+        .mode-toggle-switch input:checked + .mode-toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .mode-toggle-switch:hover .mode-toggle-slider {
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
         }
 
         .game-found-notification {
@@ -2087,16 +2021,18 @@
             stopGameInfoUpdates(); // Stop updating game info when not in lobby
             // Dismiss notification when game starts
             dismissNotification();
-            // If we just entered a game, disable auto-join and play bell sound
+            // If we just entered a game, disable auto-join only if we joined via auto-join mode
             if (!wasInGame) {
                 // Play boxing ring bell sound when game starts
                 playGameStartSound();
-                if (autoJoinEnabled) {
-                    console.log('[Auto-Join] Game started, disabling auto-join');
+                // Only disable search if we joined via auto-join mode
+                if (autoJoinEnabled && joinMode === 'autojoin') {
                     autoJoinEnabled = false;
                     stopMonitoring();
                     saveSettings();
                     updateUI();
+                } else if (autoJoinEnabled && joinMode === 'notify') {
+                    // In notify mode, keep search active (user manually joined)
                 }
             }
             panel.dataset.wasInGame = 'true';
@@ -2106,13 +2042,22 @@
             startGameInfoUpdates(); // Start updating game info when in lobby
             joinedLobbies.clear(); // Clear to allow rejoining same lobby if needed
 
-            // If we just returned to lobby, disable auto-join
-            if (wasInGame && autoJoinEnabled) {
-                console.log('[Auto-Join] Returned to lobby, disabling auto-join');
-                autoJoinEnabled = false;
-                stopMonitoring();
+            // If we just returned to lobby, auto-start search in notify mode
+            if (wasInGame) {
+                // Always enable search when returning to lobby
+                autoJoinEnabled = true;
+                // Set to notify mode by default when returning to lobby
+                joinMode = 'notify';
+                // Update toggle and labels
+                const modeToggle = document.getElementById('join-mode-toggle');
+                if (modeToggle) {
+                    modeToggle.checked = false;
+                    updateModeLabels(false);
+                }
+                // Save settings and auto-start search if criteria exist
                 saveSettings();
                 updateUI();
+                tryAutoStartSearch();
             }
             // Clear notified lobbies when returning to lobby
             notifiedLobbies.clear();
@@ -2150,19 +2095,11 @@
 
     // Initialize
     function init() {
-        console.log('[Auto-Join] Initializing...');
         loadSettings();
-        console.log('[Auto-Join] Settings loaded:', { autoJoinEnabled, criteriaList });
         createUI();
-        console.log('[Auto-Join] UI created');
 
         // Preload audio files
         preloadSounds();
-
-        // Always start with auto-join OFF (even if it was saved as enabled)
-        autoJoinEnabled = false;
-        saveSettings();
-        updateUI();
 
         // Monitor URL changes to show/hide panel (event-based, more efficient)
         observeURL();
