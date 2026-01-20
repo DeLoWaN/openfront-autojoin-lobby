@@ -1,0 +1,26 @@
+{
+  "name": "openfront-bundle-userscript",
+  "version": "2.2.1",
+  "description": "OpenFront.io Bundle: Player List + Auto-Join",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.js --watch",
+    "build": "node esbuild.config.js",
+    "build:prod": "NODE_ENV=production node esbuild.config.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "type-check": "tsc --noEmit",
+    "size-check": "ls -lh dist/bundle.js"
+  },
+  "keywords": ["userscript", "openfront", "tampermonkey", "greasemonkey"],
+  "author": "DeLoVaN + SyntaxMenace + DeepSeek + Claude",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/greasemonkey": "^4.0.7",
+    "@types/node": "^20.10.6",
+    "@vitest/ui": "^1.1.0",
+    "esbuild": "^0.19.11",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}
