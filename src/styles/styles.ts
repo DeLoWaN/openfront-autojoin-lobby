@@ -189,6 +189,20 @@ export function getStyles(): string {
     .of-clan-group {
       border-bottom: 1px solid rgba(110, 130, 180, 0.08);
     }
+    .of-clan-group-enter {
+      animation: clanGroupEnter ${TIMING.slow} cubic-bezier(.27,.82,.48,1.06) forwards;
+    }
+    @keyframes clanGroupEnter {
+      from { opacity: 0; transform: translateY(-15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .of-clan-group-exit {
+      animation: clanGroupExit 0.25s cubic-bezier(.51,.01,1,1.01) forwards;
+    }
+    @keyframes clanGroupExit {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-18px); }
+    }
     .of-clan-group-header {
       padding: ${SPACING.sm} ${SPACING.md};
       background: ${COLORS.bgHover};
@@ -289,6 +303,10 @@ export function getStyles(): string {
     .of-player-name { color: ${COLORS.textPrimary}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; flex: 1; }
     .of-player-highlighted { background: linear-gradient(90deg, ${COLORS.highlight} 40%, rgba(255,210,80,0.10)); border-left: 3.5px solid #FFD900; }
     .of-player-enter { animation: playerEnter ${TIMING.slow} cubic-bezier(.27,.82,.48,1.06) forwards; }
+    .of-player-enter-stagger-1 { animation-delay: 30ms; }
+    .of-player-enter-stagger-2 { animation-delay: 60ms; }
+    .of-player-enter-stagger-3 { animation-delay: 90ms; }
+    .of-player-enter-stagger-4 { animation-delay: 120ms; }
     .of-player-enter-highlight { background-color: rgba(110,160,255,0.14) !important; }
     .of-player-exit-highlight { background-color: rgba(220, 70, 90, 0.18); }
     .of-player-exit { animation: playerExit 0.25s cubic-bezier(.51,.01,1,1.01) forwards; }

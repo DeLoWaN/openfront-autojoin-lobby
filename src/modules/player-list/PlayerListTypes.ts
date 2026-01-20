@@ -35,3 +35,18 @@ export interface GroupedPlayers {
   clanGroups: ClanGroup[];
   untaggedPlayers: string[];
 }
+
+/**
+ * Differences between previous and current player lists
+ * Used for animating player joins/leaves
+ */
+export interface PlayerDiff {
+  added: Set<string>;
+  removed: Set<string>;
+  addedByClan: Map<string, string[]>; // clanTag → playerNames[]
+  removedByClan: Map<string, string[]>;
+  addedUntagged: string[];
+  removedUntagged: string[];
+  newClans: string[];
+  removedClans: string[];
+}

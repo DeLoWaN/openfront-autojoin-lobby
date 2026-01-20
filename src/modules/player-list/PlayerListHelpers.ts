@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from '@/config/constants';
-import type { ClanGroup, GroupedPlayers } from './PlayerListTypes';
+import type { ClanGroup, GroupedPlayers, PlayerDiff } from './PlayerListTypes';
 
 /**
  * Extract clan tag from player name
@@ -102,4 +102,144 @@ export async function fetchGameData(
     // Return empty clients on error
     return { clients: {} };
   }
+}
+
+/**
+ * Calculate differences between previous and current player lists
+ * Used to determine which players/clans to animate when adding/removing
+ *
+ * @param previousPlayers - Set of previous player names
+ * @param currentPlayers - Array of current player names
+ * @param previousClanGroups - Previous clan groups
+ * @param currentClanGroups - Current clan groups
+ * @param previousUntagged - Previous untagged players
+ * @param currentUntagged - Current untagged players
+ * @returns Object describing all changes
+ */
+export function diffPlayerSets(
+  previousPlayers: Set<string>,
+  currentPlayers: string[],
+  previousClanGroups: ClanGroup[],
+  currentClanGroups: ClanGroup[],
+  previousUntagged: string[],
+  currentUntagged: string[]
+): PlayerDiff {
+  const currentSet = new Set(currentPlayers);
+  const added = new Set<string>();
+  const removed = new Set<string>();
+
+  // Find added players
+  for (const player of currentPlayers) {
+    if (!previousPlayers.has(player)) {
+      added.add(player);
+    }
+  }
+
+  // Find removed players
+  for (const player of previousPlayers) {
+    if (!currentSet.has(player)) {
+      removed.add(player);
+    }
+  }
+
+  // Build clan maps
+  const previousClanMap = new Map<string, Set<string>>();
+  for (const group of previousClanGroups) {
+    previousClanMap.set(group.tag.toLowerCase(), new Set(group.players));
+  }
+
+  const currentClanMap = new Map<string, Set<string>>();
+  for (const group of currentClanGroups) {
+    currentClanMap.set(group.tag.toLowerCase(), new Set(group.players));
+  }
+
+  // Find added/removed players by clan
+  const addedByClan = new Map<string, string[]>();
+  const removedByClan = new Map<string, string[]>();
+
+  // Check for new clans and added players in existing clans
+  for (const [clanTag, currentPlayers] of currentClanMap) {
+    const previousPlayers = previousClanMap.get(clanTag);
+    if (!previousPlayers) {
+      // New clan - don't track individual players, we'll animate the whole group
+      continue;
+    }
+
+    const addedInClan: string[] = [];
+    for (const player of currentPlayers) {
+      if (!previousPlayers.has(player)) {
+        addedInClan.push(player);
+      }
+    }
+
+    if (addedInClan.length > 0) {
+      addedByClan.set(clanTag, addedInClan);
+    }
+  }
+
+  // Check for removed clans and removed players from existing clans
+  for (const [clanTag, previousPlayers] of previousClanMap) {
+    const currentPlayers = currentClanMap.get(clanTag);
+    if (!currentPlayers) {
+      // Clan removed - don't track individual players
+      continue;
+    }
+
+    const removedInClan: string[] = [];
+    for (const player of previousPlayers) {
+      if (!currentPlayers.has(player)) {
+        removedInClan.push(player);
+      }
+    }
+
+    if (removedInClan.length > 0) {
+      removedByClan.set(clanTag, removedInClan);
+    }
+  }
+
+  // Find new and removed clans
+  const newClans: string[] = [];
+  const removedClans: string[] = [];
+
+  for (const group of currentClanGroups) {
+    if (!previousClanMap.has(group.tag.toLowerCase())) {
+      newClans.push(group.tag);
+    }
+  }
+
+  for (const group of previousClanGroups) {
+    if (!currentClanMap.has(group.tag.toLowerCase())) {
+      removedClans.push(group.tag);
+    }
+  }
+
+  // Find added/removed untagged players
+  const previousUntaggedSet = new Set(previousUntagged);
+  const currentUntaggedSet = new Set(currentUntagged);
+
+  const addedUntagged: string[] = [];
+  const removedUntagged: string[] = [];
+
+  for (const player of currentUntagged) {
+    if (!previousUntaggedSet.has(player)) {
+      addedUntagged.push(player);
+    }
+  }
+
+  for (const player of previousUntagged) {
+    if (!currentUntaggedSet.has(player)) {
+      removedUntagged.push(player);
+    }
+  }
+
+  return {
+    added,
+    removed,
+    addedByClan,
+    removedByClan,
+    addedUntagged,
+    removedUntagged,
+    newClans,
+    removedClans,
+  };
 }

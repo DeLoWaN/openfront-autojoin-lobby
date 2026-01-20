@@ -22,6 +22,7 @@ import {
   groupPlayersByClan,
   findWorkerId,
   fetchGameData,
+  diffPlayerSets,
 } from './PlayerListHelpers';
 
 // Module-level variables for game tracking
@@ -34,6 +35,8 @@ export class PlayerListUI {
   private clanGroups: ClanGroup[] = [];
   private untaggedPlayers: string[] = [];
   private previousPlayers: Set<string> = new Set();
+  private previousClanGroups: ClanGroup[] = [];
+  private previousUntaggedPlayers: string[] = [];
   private sleeping: boolean;
   private debugSequence: string[] = [];
   private showOnlyClans: boolean = true;
@@ -143,6 +146,11 @@ export class PlayerListUI {
     }
 
     const { clanGroups, untaggedPlayers } = groupPlayersByClan(names);
+
+    // Store current state as previous before updating
+    this.previousClanGroups = this.clanGroups;
+    this.previousUntaggedPlayers = this.untaggedPlayers;
+
     this.clanGroups = clanGroups;
     this.untaggedPlayers = untaggedPlayers;
 
@@ -521,10 +529,14 @@ export class PlayerListUI {
   /**
    * Create a clan group element with header and players
    */
-  private createClanGroupEl(tag: string, players: string[], stats: any): HTMLElement {
+  private createClanGroupEl(tag: string, players: string[], stats: any, isNew: boolean = false): HTMLElement {
     const groupEl = document.createElement('div');
     groupEl.className = 'of-clan-group';
-    (groupEl.dataset as any).clanTag = tag;
+    groupEl.setAttribute('data-clan-tag', tag.toLowerCase());
+
+    if (isNew) {
+      groupEl.classList.add('of-clan-group-enter');
+    }
 
     const headerEl = document.createElement('div');
     headerEl.className = 'of-clan-group-header';
@@ -593,9 +605,14 @@ export class PlayerListUI {
   /**
    * Create a player element
    */
-  private createPlayerEl(name: string): HTMLElement {
+  private createPlayerEl(name: string, isNew: boolean = false): HTMLElement {
     const el = document.createElement('div');
     el.className = 'of-player-item';
+    el.setAttribute('data-player-name', name);
+
+    if (isNew) {
+      el.classList.add('of-player-enter');
+    }
 
     const nameEl = document.createElement('span');
     nameEl.className = 'of-player-name';
@@ -676,9 +693,38 @@ export class PlayerListUI {
   }
 
   /**
-   * Render the complete player list
+   * Render the complete player list with animations
+   * Uses differential updates to animate only changes
    */
   private renderPlayerList(): void {
+    // Calculate differences for animation
+    const diff = diffPlayerSets(
+      this.previousPlayers,
+      this.currentPlayers,
+      this.previousClanGroups,
+      this.clanGroups,
+      this.previousUntaggedPlayers,
+      this.untaggedPlayers
+    );
+
+    // If this is the first render or filter changed, do full rebuild
+    const isFirstRender = this.previousPlayers.size === 0;
+    const filterChanged = this.lastRenderedShowOnlyClans !== this.showOnlyClans;
+
+    if (isFirstRender || filterChanged) {
+      this.renderPlayerListFull();
+      return;
+    }
+
+    // Otherwise, use differential updates with animations
+    this.renderPlayerListDifferential(diff);
+  }
+
+  /**
+   * Full rebuild of player list (no animations)
+   * Used on first render or filter change
+   */
+  private renderPlayerListFull(): void {
     this.content.innerHTML = '';
 
     // Sort clans with current player's clan at the top
@@ -688,7 +734,7 @@ export class PlayerListUI {
     // Render clan groups
     for (const group of sortedClanGroups) {
       const stats = ClanLeaderboardCache.getStats(group.tag);
-      const groupEl = this.createClanGroupEl(group.tag, group.players, stats);
+      const groupEl = this.createClanGroupEl(group.tag, group.players, stats, false);
 
       // Apply blue highlight to current player's clan
       if (playerClanTag && group.tag.toLowerCase() === playerClanTag.toLowerCase()) {
@@ -701,8 +747,231 @@ export class PlayerListUI {
     // Render untagged players if filter is off
     if (!this.showOnlyClans) {
       for (const player of this.untaggedPlayers) {
-        this.content.appendChild(this.createPlayerEl(player));
+        this.content.appendChild(this.createPlayerEl(player, false));
       }
+    }
+  }
+
+  /**
+   * Differential update of player list with animations
+   * Only updates changed elements
+   */
+  private renderPlayerListDifferential(diff: import('./PlayerListTypes').PlayerDiff): void {
+    // Remove clans that no longer exist
+    for (const clanTag of diff.removedClans) {
+      const groupEl = this.content.querySelector(
+        `[data-clan-tag="${clanTag.toLowerCase()}"]`
+      ) as HTMLElement;
+      if (groupEl) {
+        this.removeClanGroupWithAnimation(groupEl);
+      }
+    }
+
+    // Remove players from existing clans
+    for (const [clanTag, players] of diff.removedByClan) {
+      const groupEl = this.content.querySelector(
+        `[data-clan-tag="${clanTag.toLowerCase()}"]`
+      ) as HTMLElement;
+      if (groupEl) {
+        for (const playerName of players) {
+          const playerEl = groupEl.querySelector(
+            `[data-player-name="${CSS.escape(playerName)}"]`
+          ) as HTMLElement;
+          if (playerEl) {
+            this.removePlayerWithAnimation(playerEl);
+          }
+        }
+      }
+    }
+
+    // Remove untagged players
+    if (!this.showOnlyClans) {
+      for (const playerName of diff.removedUntagged) {
+        const playerEl = this.content.querySelector(
+          `.of-player-item[data-player-name="${CSS.escape(playerName)}"]`
+        ) as HTMLElement;
+        if (playerEl && !playerEl.closest('.of-clan-group')) {
+          this.removePlayerWithAnimation(playerEl);
+        }
+      }
+    }
+
+    // Add new clans
+    const sortedClanGroups = this.sortClanGroupsWithPlayerFirst(this.clanGroups);
+    const playerClanTag = this.findPlayerClanTag();
+
+    for (const clanTag of diff.newClans) {
+      const group = sortedClanGroups.find((g) => g.tag === clanTag);
+      if (!group) continue;
+
+      const stats = ClanLeaderboardCache.getStats(group.tag);
+      const groupEl = this.createClanGroupEl(group.tag, group.players, stats, true);
+
+      // Apply blue highlight to current player's clan
+      if (playerClanTag && group.tag.toLowerCase() === playerClanTag.toLowerCase()) {
+        groupEl.classList.add('current-player-clan');
+      }
+
+      // Insert in correct position
+      this.insertClanGroupInOrder(groupEl, sortedClanGroups);
+
+      // Clean up animation class after animation completes
+      groupEl.addEventListener('animationend', () => {
+        groupEl.classList.remove('of-clan-group-enter');
+      }, { once: true });
+    }
+
+    // Add players to existing clans with stagger
+    let staggerIndex = 0;
+    for (const [clanTag, players] of diff.addedByClan) {
+      const groupEl = this.content.querySelector(
+        `[data-clan-tag="${clanTag.toLowerCase()}"]`
+      ) as HTMLElement;
+      if (!groupEl) continue;
+
+      const playersContainer = groupEl.querySelector('.of-clan-group-players') as HTMLElement;
+      if (!playersContainer) continue;
+
+      // Check if group is collapsed
+      const isCollapsed = groupEl.classList.contains('collapsed');
+
+      for (const playerName of players) {
+        const playerEl = this.createPlayerEl(playerName, true);
+
+        // Add stagger class (limit to 5)
+        if (staggerIndex > 0 && staggerIndex <= 4) {
+          playerEl.classList.add(`of-player-enter-stagger-${staggerIndex}`);
+        }
+        staggerIndex++;
+
+        // Don't animate if collapsed
+        if (isCollapsed) {
+          playerEl.classList.remove('of-player-enter');
+        }
+
+        playersContainer.appendChild(playerEl);
+
+        // Clean up animation class after animation completes
+        if (!isCollapsed) {
+          playerEl.addEventListener('animationend', () => {
+            playerEl.classList.remove('of-player-enter');
+            for (let i = 1; i <= 4; i++) {
+              playerEl.classList.remove(`of-player-enter-stagger-${i}`);
+            }
+          }, { once: true });
+        }
+      }
+
+      // Update clan count
+      this.updateClanCount(groupEl);
+    }
+
+    // Add untagged players with stagger
+    if (!this.showOnlyClans) {
+      for (const playerName of diff.addedUntagged) {
+        const playerEl = this.createPlayerEl(playerName, true);
+
+        // Add stagger class (limit to 5)
+        if (staggerIndex > 0 && staggerIndex <= 4) {
+          playerEl.classList.add(`of-player-enter-stagger-${staggerIndex}`);
+        }
+        staggerIndex++;
+
+        this.content.appendChild(playerEl);
+
+        // Clean up animation class
+        playerEl.addEventListener('animationend', () => {
+          playerEl.classList.remove('of-player-enter');
+          for (let i = 1; i <= 4; i++) {
+            playerEl.classList.remove(`of-player-enter-stagger-${i}`);
+          }
+        }, { once: true });
+      }
+    }
+
+    // Update clan counts for all modified clans
+    for (const group of sortedClanGroups) {
+      const groupEl = this.content.querySelector(
+        `[data-clan-tag="${group.tag.toLowerCase()}"]`
+      ) as HTMLElement;
+      if (groupEl) {
+        this.updateClanCount(groupEl);
+      }
+    }
+  }
+
+  /**
+   * Remove a player element with exit animation
+   */
+  private removePlayerWithAnimation(playerEl: HTMLElement): void {
+    playerEl.classList.add('of-player-exit');
+    playerEl.addEventListener('animationend', () => {
+      playerEl.remove();
+    }, { once: true });
+  }
+
+  /**
+   * Remove a clan group with exit animation
+   */
+  private removeClanGroupWithAnimation(groupEl: HTMLElement): void {
+    groupEl.classList.add('of-clan-group-exit');
+    groupEl.addEventListener('animationend', () => {
+      groupEl.remove();
+    }, { once: true });
+  }
+
+  /**
+   * Insert a clan group in the correct position based on sort order
+   */
+  private insertClanGroupInOrder(groupEl: HTMLElement, sortedGroups: ClanGroup[]): void {
+    const clanTag = groupEl.getAttribute('data-clan-tag');
+    if (!clanTag) {
+      this.content.appendChild(groupEl);
+      return;
+    }
+
+    // Find the index in sorted groups
+    const groupIndex = sortedGroups.findIndex((g) => g.tag.toLowerCase() === clanTag);
+    if (groupIndex === -1) {
+      this.content.appendChild(groupEl);
+      return;
+    }
+
+    // Find the next clan group in DOM that comes after this one in sorted order
+    let insertBefore: Element | null = null;
+    for (let i = groupIndex + 1; i < sortedGroups.length; i++) {
+      const nextClanTag = sortedGroups[i]!.tag.toLowerCase();
+      const nextGroupEl = this.content.querySelector(`[data-clan-tag="${nextClanTag}"]`);
+      if (nextGroupEl) {
+        insertBefore = nextGroupEl;
+        break;
+      }
+    }
+
+    if (insertBefore) {
+      this.content.insertBefore(groupEl, insertBefore);
+    } else {
+      // Insert before untagged players if any
+      const firstUntaggedPlayer = this.content.querySelector(
+        '.of-player-item:not(.of-clan-group .of-player-item)'
+      );
+      if (firstUntaggedPlayer) {
+        this.content.insertBefore(groupEl, firstUntaggedPlayer);
+      } else {
+        this.content.appendChild(groupEl);
+      }
+    }
+  }
+
+  /**
+   * Update the player count badge in a clan group header
+   */
+  private updateClanCount(groupEl: HTMLElement): void {
+    const countEl = groupEl.querySelector('.of-clan-count');
+    const playersContainer = groupEl.querySelector('.of-clan-group-players');
+    if (countEl && playersContainer) {
+      const playerCount = playersContainer.querySelectorAll('.of-player-item').length;
+      countEl.textContent = String(playerCount);
     }
   }
 
