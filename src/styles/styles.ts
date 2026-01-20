@@ -11,6 +11,18 @@ import { Z_INDEX } from '@/config/constants';
  */
 export function getStyles(): string {
   return `
+    /* Body layout wrapper for flexbox */
+    #of-game-layout-wrapper {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+    #of-game-content {
+      flex: 1;
+      overflow: auto;
+      min-width: 0;
+    }
+
     .of-panel {
       position: fixed;
       background: ${COLORS.bgPrimary};
@@ -33,10 +45,12 @@ export function getStyles(): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: move;
       flex-shrink: 0;
       font-size: 1.1em;
       border-bottom: 1px solid ${COLORS.border};
+    }
+    .autojoin-header {
+      cursor: move;
     }
     .of-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(128,150,180,0.15) transparent; }
     .of-content::-webkit-scrollbar { width: 7px; }
@@ -94,17 +108,42 @@ export function getStyles(): string {
     .of-toggle.on .of-toggle-ball { left: 18px; }
 
     .of-player-list-container {
-      position: fixed;
-      top: 170px;
-      right: 3px;
-      width: 420px;
-      height: 650px;
-      resize: both;
+      width: var(--player-list-width, 300px);
+      min-width: 200px;
+      max-width: 50vw;
+      height: 100vh;
+      flex-shrink: 0;
+      position: relative;
+      background: ${COLORS.bgPrimary};
+      border: 1.5px solid ${COLORS.border};
+      border-radius: 0;
+      box-shadow: ${SHADOWS.lg};
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+      color: ${COLORS.textPrimary};
+      user-select: none;
+      z-index: ${Z_INDEX.panel};
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
-      min-width: 320px;
-      min-height: 300px;
-      max-width: 90vw;
-      max-height: 90vh;
+      resize: none;
+    }
+    .of-resize-handle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 5px;
+      height: 100%;
+      background: ${COLORS.accent};
+      cursor: ew-resize;
+      z-index: ${Z_INDEX.panel + 1};
+      opacity: 0.3;
+      transition: opacity ${TIMING.fast};
+    }
+    .of-resize-handle:hover {
+      opacity: 0.8;
+    }
+    .of-resize-handle.dragging {
+      opacity: 1;
     }
     .of-player-list-count { font-size: 0.9em; }
     .of-player-debug-info { font-size: 0.83em; color: #96a4cc; padding: 2px 6px; display: none; }

@@ -10,7 +10,7 @@
  */
 
 import { STORAGE_KEYS } from '@/config/constants';
-import { DragHandler } from '@/utils/DragHandler';
+import { ResizeHandler } from '@/utils/ResizeHandler';
 import { LobbyUtils } from '@/utils/LobbyUtils';
 import { URLObserver } from '@/utils/URLObserver';
 import { ClanLeaderboardCache } from '@/data/ClanLeaderboardCache';
@@ -60,7 +60,7 @@ export class PlayerListUI {
   private checkboxFilter!: HTMLDivElement;
   private autoRejoinCheckbox!: HTMLDivElement;
   private content!: HTMLDivElement;
-  private dragHandler!: DragHandler;
+  private resizeHandler!: ResizeHandler;
   private resizeObserver!: ResizeObserver;
 
   constructor() {
@@ -173,7 +173,15 @@ export class PlayerListUI {
   private initUI(): void {
     this.container = document.createElement('div');
     this.container.className = 'of-panel of-player-list-container';
-    document.body.appendChild(this.container);
+
+    // Append to layout wrapper (will be created by main.ts)
+    const wrapper = document.getElementById('of-game-layout-wrapper');
+    if (wrapper) {
+      wrapper.appendChild(this.container);
+    } else {
+      console.warn('[PlayerList] Layout wrapper not found, appending to body');
+      document.body.appendChild(this.container);
+    }
 
     this.header = document.createElement('div');
     this.header.className = 'of-header of-player-list-header';
@@ -244,14 +252,15 @@ export class PlayerListUI {
     this.content.className = 'of-content of-player-list-content';
     this.container.appendChild(this.content);
 
-    this.dragHandler = new DragHandler(
+    this.resizeHandler = new ResizeHandler(
       this.container,
-      (x, y) => {
-        this.container.style.left = x + 'px';
-        this.container.style.top = y + 'px';
-        this.container.style.right = 'auto';
+      (width) => {
+        // Update CSS variable for body layout
+        document.documentElement.style.setProperty('--player-list-width', width + 'px');
       },
-      STORAGE_KEYS.playerListPanelPosition
+      STORAGE_KEYS.playerListPanelSize,
+      200,  // min width
+      50    // max width (vw)
     );
 
     // Load saved panel size
@@ -989,9 +998,9 @@ export class PlayerListUI {
    */
   private applySavedPanelSize(): void {
     const saved = GM_getValue<PanelSize | undefined>(STORAGE_KEYS.playerListPanelSize);
-    if (saved && saved.width && saved.height) {
+    if (saved && saved.width) {
       this.container.style.width = saved.width + 'px';
-      this.container.style.height = saved.height + 'px';
+      document.documentElement.style.setProperty('--player-list-width', saved.width + 'px');
     }
   }
 
@@ -1045,8 +1054,8 @@ export class PlayerListUI {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
-    if (this.dragHandler) {
-      this.dragHandler.destroy();
+    if (this.resizeHandler) {
+      this.resizeHandler.destroy();
     }
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
