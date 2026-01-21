@@ -10,7 +10,6 @@
  */
 
 import { STORAGE_KEYS } from '@/config/constants';
-import { DragHandler } from '@/utils/DragHandler';
 import { LobbyUtils } from '@/utils/LobbyUtils';
 import { SoundUtils } from '@/utils/SoundUtils';
 import { URLObserver } from '@/utils/URLObserver';
@@ -39,10 +38,10 @@ export class AutoJoinUI {
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private gameInfoInterval: ReturnType<typeof setInterval> | null = null;
   private notificationTimeout: ReturnType<typeof setTimeout> | null = null;
+  private isCollapsed: boolean = false;
 
   // DOM elements
   private panel!: HTMLDivElement;
-  private dragHandler!: DragHandler;
 
   // Engine
   private engine: AutoJoinEngine;
@@ -405,6 +404,19 @@ export class AutoJoinUI {
   }
 
   /**
+   * Toggle the auto-join panel body visibility
+   */
+  private setCollapsed(collapsed: boolean): void {
+    this.isCollapsed = collapsed;
+    this.panel.classList.toggle('autojoin-collapsed', collapsed);
+    const toggleButton = document.getElementById('autojoin-collapse-toggle');
+    if (toggleButton) {
+      toggleButton.setAttribute('aria-expanded', String(!collapsed));
+      toggleButton.setAttribute('title', collapsed ? 'Expand' : 'Collapse');
+    }
+  }
+
+  /**
    * Get number value from input
    */
   private getNumberValue(id: string): number | null {
@@ -625,6 +637,15 @@ export class AutoJoinUI {
 
     if (!minSlider || !maxSlider || !minInput || !maxInput) return;
 
+    const savedMin = parseInt(minInput.value, 10);
+    const savedMax = parseInt(maxInput.value, 10);
+    if (!Number.isNaN(savedMin)) {
+      minSlider.value = String(savedMin);
+    }
+    if (!Number.isNaN(savedMax)) {
+      maxSlider.value = String(savedMax);
+    }
+
     const update = () => {
       this.updateSliderRange(minSliderId, maxSliderId, minInputId, maxInputId, fillId, minValueId, maxValueId);
       this.criteriaList = this.buildCriteriaFromUI();
@@ -709,6 +730,23 @@ export class AutoJoinUI {
     // Status toggle (enable/disable)
     document.getElementById('autojoin-status')?.addEventListener('click', () => {
       this.setAutoJoinEnabled(!this.autoJoinEnabled, { resetTimer: true });
+    });
+
+    // Collapse toggle (entire header)
+    this.panel
+      .querySelector('.autojoin-header')
+      ?.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('#autojoin-collapse-toggle')) {
+          return;
+        }
+        this.setCollapsed(!this.isCollapsed);
+      });
+
+    // Collapse toggle (button)
+    document.getElementById('autojoin-collapse-toggle')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.setCollapsed(!this.isCollapsed);
     });
 
     // FFA checkbox
@@ -826,101 +864,107 @@ export class AutoJoinUI {
     this.panel.id = 'openfront-autojoin-panel';
     this.panel.className = 'of-panel autojoin-panel';
     this.panel.innerHTML = `
-      <div class="of-header autojoin-header"><span>Auto-Join</span></div>
-      <div class="of-content autojoin-content">
-        <button type="button" id="autojoin-main-button" class="autojoin-main-button active">Auto-Join</button>
-        <div class="autojoin-mode-config">
-          <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA"><span>FFA</span></label>
-          <div class="autojoin-mode-config" id="ffa-config" style="display: none;">
-            <div class="player-filter-info"><small>Filter by max players:</small></div>
-            <div class="capacity-range-wrapper">
-              <div class="capacity-range-visual">
-                <div class="capacity-track">
-                  <div class="capacity-range-fill" id="ffa-range-fill"></div>
-                  <input type="range" id="autojoin-ffa-min-slider" min="1" max="100" value="1" class="capacity-slider capacity-slider-min">
-                  <input type="range" id="autojoin-ffa-max-slider" min="1" max="100" value="100" class="capacity-slider capacity-slider-max">
-                </div>
-                <div class="capacity-labels">
-                  <div class="capacity-label-group"><label for="autojoin-ffa-min-slider">Min:</label><span class="capacity-value" id="ffa-min-value">Any</span></div>
-                  <div class="capacity-label-group"><label for="autojoin-ffa-max-slider">Max:</label><span class="capacity-value" id="ffa-max-value">Any</span></div>
-                </div>
-              </div>
-              <div class="capacity-inputs-hidden">
-                <input type="number" id="autojoin-ffa-min" min="1" max="100" style="display: none;">
-                <input type="number" id="autojoin-ffa-max" min="1" max="100" style="display: none;">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="autojoin-mode-config">
-          <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-team" name="gameMode" value="Team"><span>Team</span></label>
-          <div class="autojoin-mode-config" id="team-config" style="display: none;">
-            <div class="team-count-section">
-              <label>Teams (optional):</label>
-              <div>
-                <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
-                <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
-              </div>
-              <div class="team-count-options-centered">
-                <div class="team-count-column">
-                  <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
-                  <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
-                  <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
-                </div>
-                <div class="team-count-column">
-                  <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
-                  <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
-                  <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
-                </div>
-                <div class="team-count-column">
-                  <label><input type="checkbox" id="autojoin-team-5" value="5"> 5 teams</label>
-                  <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
-                  <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
-                </div>
-              </div>
-            </div>
-            <div class="player-filter-info"><small>Filter by players per team:</small></div>
-            <div class="capacity-range-wrapper">
-              <div class="capacity-range-visual">
-                <div class="capacity-track">
-                  <div class="capacity-range-fill" id="team-range-fill"></div>
-                  <input type="range" id="autojoin-team-min-slider" min="1" max="50" value="1" class="capacity-slider capacity-slider-min">
-                  <input type="range" id="autojoin-team-max-slider" min="1" max="50" value="50" class="capacity-slider capacity-slider-max">
-                </div>
-                <div class="capacity-labels">
-                  <div class="capacity-label-group"><label for="autojoin-team-min-slider">Min:</label><span class="capacity-value" id="team-min-value">1</span></div>
-                  <div class="three-times-checkbox"><label for="autojoin-team-three-times">3×</label><input type="checkbox" id="autojoin-team-three-times"></div>
-                  <div class="capacity-label-group"><label for="autojoin-team-max-slider">Max:</label><span class="capacity-value" id="team-max-value">50</span></div>
-                </div>
-              </div>
-              <div class="capacity-inputs-hidden">
-                <input type="number" id="autojoin-team-min" min="1" max="50" style="display: none;">
-                <input type="number" id="autojoin-team-max" min="1" max="50" style="display: none;">
-              </div>
-            </div>
-            <div class="current-game-info" id="current-game-info" style="display: none;"></div>
-          </div>
-        </div>
+      <div class="of-header autojoin-header">
+        <span>Auto-Join</span>
+        <button type="button" id="autojoin-collapse-toggle" class="autojoin-collapse-button" aria-label="Collapse Auto-Join" title="Collapse">▾</button>
       </div>
-      <div class="of-footer autojoin-footer">
-        <div class="autojoin-status" id="autojoin-status"><span class="status-indicator"></span><span class="status-text">Active</span><span class="search-timer" id="search-timer" style="display: none;"></span></div>
-        <div class="autojoin-settings"><label class="sound-toggle-label"><input type="checkbox" id="autojoin-sound-toggle"><span>🔔 Sound</span></label></div>
+      <div class="autojoin-body">
+        <div class="of-content autojoin-content">
+          <div class="autojoin-top-row">
+            <button type="button" id="autojoin-main-button" class="autojoin-main-button active">Auto-Join</button>
+            <div class="autojoin-status" id="autojoin-status"><span class="status-indicator"></span><span class="status-text">Active</span><span class="search-timer" id="search-timer" style="display: none;"></span></div>
+          </div>
+          <div class="autojoin-config-grid">
+            <div class="autojoin-mode-config autojoin-config-card">
+              <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA"><span>FFA</span></label>
+              <div class="autojoin-mode-config" id="ffa-config" style="display: none;">
+                <div class="player-filter-info"><small>Filter by max players:</small></div>
+                <div class="capacity-range-wrapper">
+                  <div class="capacity-range-visual">
+                    <div class="capacity-track">
+                      <div class="capacity-range-fill" id="ffa-range-fill"></div>
+                      <input type="range" id="autojoin-ffa-min-slider" min="1" max="100" value="1" class="capacity-slider capacity-slider-min">
+                      <input type="range" id="autojoin-ffa-max-slider" min="1" max="100" value="100" class="capacity-slider capacity-slider-max">
+                    </div>
+                    <div class="capacity-labels">
+                      <div class="capacity-label-group"><label for="autojoin-ffa-min-slider">Min:</label><span class="capacity-value" id="ffa-min-value">Any</span></div>
+                      <div class="capacity-label-group"><label for="autojoin-ffa-max-slider">Max:</label><span class="capacity-value" id="ffa-max-value">Any</span></div>
+                    </div>
+                  </div>
+                  <div class="capacity-inputs-hidden">
+                    <input type="number" id="autojoin-ffa-min" min="1" max="100" style="display: none;">
+                    <input type="number" id="autojoin-ffa-max" min="1" max="100" style="display: none;">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="autojoin-mode-config autojoin-config-card">
+              <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-team" name="gameMode" value="Team"><span>Team</span></label>
+              <div class="autojoin-mode-config" id="team-config" style="display: none;">
+                <div class="team-count-section">
+                  <label>Teams (optional):</label>
+                  <div>
+                    <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
+                    <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
+                  </div>
+                  <div class="team-count-options-centered">
+                    <div class="team-count-column">
+                      <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
+                      <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
+                      <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
+                    </div>
+                    <div class="team-count-column">
+                      <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
+                      <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
+                      <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
+                    </div>
+                    <div class="team-count-column">
+                      <label><input type="checkbox" id="autojoin-team-5" value="5"> 5 teams</label>
+                      <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
+                      <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="player-filter-info"><small>Filter by players per team:</small></div>
+                <div class="capacity-range-wrapper">
+                  <div class="capacity-range-visual">
+                    <div class="capacity-track">
+                      <div class="capacity-range-fill" id="team-range-fill"></div>
+                      <input type="range" id="autojoin-team-min-slider" min="1" max="50" value="1" class="capacity-slider capacity-slider-min">
+                      <input type="range" id="autojoin-team-max-slider" min="1" max="50" value="50" class="capacity-slider capacity-slider-max">
+                    </div>
+                    <div class="capacity-labels">
+                      <div class="capacity-label-group"><label for="autojoin-team-min-slider">Min:</label><span class="capacity-value" id="team-min-value">1</span></div>
+                      <div class="three-times-checkbox"><label for="autojoin-team-three-times">3×</label><input type="checkbox" id="autojoin-team-three-times"></div>
+                      <div class="capacity-label-group"><label for="autojoin-team-max-slider">Max:</label><span class="capacity-value" id="team-max-value">50</span></div>
+                    </div>
+                  </div>
+                  <div class="capacity-inputs-hidden">
+                    <input type="number" id="autojoin-team-min" min="1" max="50" style="display: none;">
+                    <input type="number" id="autojoin-team-max" min="1" max="50" style="display: none;">
+                  </div>
+                </div>
+                <div class="current-game-info" id="current-game-info" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="of-footer autojoin-footer">
+          <div class="autojoin-settings"><label class="sound-toggle-label"><input type="checkbox" id="autojoin-sound-toggle"><span>🔔 Sound</span></label></div>
+        </div>
       </div>
     `;
 
-    document.body.appendChild(this.panel);
-
-    this.dragHandler = new DragHandler(
-      this.panel,
-      (x, y) => {
-        this.panel.style.left = x + 'px';
-        this.panel.style.top = y + 'px';
-        this.panel.style.right = 'auto';
-      },
-      STORAGE_KEYS.autoJoinPanelPosition
-    );
+    const mountPoint = document.getElementById('of-autojoin-slot');
+    if (mountPoint) {
+      mountPoint.appendChild(this.panel);
+    } else {
+      console.warn('[AutoJoin] Auto-join slot not found, appending to body');
+      document.body.appendChild(this.panel);
+    }
 
     this.setupEventListeners();
+    this.setCollapsed(false);
     this.loadUIFromSettings();
     this.initializeSlider(
       'autojoin-ffa-min-slider',
@@ -971,9 +1015,6 @@ export class AutoJoinUI {
     this.stopGameInfoUpdates();
     if (this.notificationTimeout) {
       clearTimeout(this.notificationTimeout);
-    }
-    if (this.dragHandler) {
-      this.dragHandler.destroy();
     }
     if (this.panel && this.panel.parentNode) {
       this.panel.parentNode.removeChild(this.panel);

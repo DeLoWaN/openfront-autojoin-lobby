@@ -50,7 +50,31 @@ export function getStyles(): string {
       border-bottom: 1px solid ${COLORS.border};
     }
     .autojoin-header {
-      cursor: move;
+      cursor: pointer;
+      gap: ${SPACING.sm};
+      padding: ${SPACING.sm} ${SPACING.md};
+      font-size: 1em;
+    }
+    .autojoin-header:hover {
+      background: ${COLORS.bgHover};
+    }
+    .autojoin-collapse-button {
+      background: transparent;
+      border: 1px solid transparent;
+      color: ${COLORS.textPrimary};
+      border-radius: ${RADIUS.sm};
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 1em;
+      line-height: 1;
+      transition: transform ${TIMING.fast}, border-color ${TIMING.fast}, background ${TIMING.fast};
+    }
+    .autojoin-collapse-button:hover {
+      border-color: ${COLORS.borderAccent};
+      background: ${COLORS.bgHover};
+    }
+    .autojoin-panel.autojoin-collapsed .autojoin-collapse-button {
+      transform: rotate(-90deg);
     }
     .of-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(128,150,180,0.15) transparent; }
     .of-content::-webkit-scrollbar { width: 7px; }
@@ -127,6 +151,10 @@ export function getStyles(): string {
       overflow: hidden;
       resize: none;
     }
+    .of-autojoin-slot {
+      width: 100%;
+      flex-shrink: 0;
+    }
     .of-resize-handle {
       position: absolute;
       left: 0;
@@ -163,6 +191,11 @@ export function getStyles(): string {
       color: ${COLORS.textSecondary};
       font-weight: 500;
     }
+    .of-quick-tag-item {
+      display: flex;
+      align-items: center;
+      gap: ${SPACING.xs};
+    }
     .of-quick-tag-btn {
       padding: 4px 12px;
       font-size: 0.85em;
@@ -177,6 +210,28 @@ export function getStyles(): string {
     .of-quick-tag-btn:hover {
       background: ${COLORS.accentMuted};
       border-color: ${COLORS.accent};
+    }
+    .of-quick-tag-remove {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1;
+      background: rgba(255, 117, 117, 0.15);
+      color: ${COLORS.error};
+      border: 1px solid rgba(255, 117, 117, 0.6);
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background ${TIMING.fast}, border-color ${TIMING.fast}, transform ${TIMING.fast};
+    }
+    .of-quick-tag-remove:hover {
+      background: rgba(255, 117, 117, 0.25);
+      border-color: ${COLORS.error};
+      transform: scale(1.05);
     }
 
     .of-clan-checkbox-filter {
@@ -356,32 +411,45 @@ export function getStyles(): string {
     .of-player-list-button:hover { background: rgba(100,125,190,0.18); }
 
     .autojoin-panel {
-      position: fixed; top: 20px; right: 20px; width: 360px; max-width: 90vw; max-height: 80vh;
-      transition: opacity ${TIMING.slow}, transform ${TIMING.slow}; cursor: default;
+      position: relative;
+      width: 100%;
+      max-width: none;
+      max-height: none;
+      margin: 0;
+      border: none;
+      border-bottom: 1px solid ${COLORS.border};
+      border-radius: 0;
+      box-shadow: none;
+      transition: opacity ${TIMING.slow}, transform ${TIMING.slow};
+      cursor: default;
     }
-    .autojoin-panel:active { cursor: grabbing; }
     .autojoin-panel.hidden { display: none; }
-    .autojoin-content { display: flex; flex-direction: column; gap: ${SPACING.md}; padding: ${SPACING.md} ${SPACING.lg}; }
-    .autojoin-footer { align-items: center; }
-    .autojoin-main-button { width: 100%; padding: ${SPACING.md}; border: none; border-radius: ${RADIUS.md}; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: all ${TIMING.slow}; text-align: center; }
+    .autojoin-panel.autojoin-collapsed .autojoin-body { display: none; }
+    .autojoin-body { display: flex; flex-direction: column; }
+    .autojoin-content { display: flex; flex-direction: column; gap: ${SPACING.sm}; padding: ${SPACING.sm} ${SPACING.md}; }
+    .autojoin-top-row { display: flex; align-items: center; gap: ${SPACING.sm}; flex-wrap: wrap; }
+    .autojoin-config-grid { display: flex; flex-direction: column; gap: ${SPACING.sm}; }
+    .autojoin-config-card { flex: 1 1 auto; min-width: 0; width: 100%; }
+    .autojoin-footer { align-items: center; justify-content: flex-end; padding: ${SPACING.xs} ${SPACING.md}; }
+    .autojoin-main-button { width: auto; flex: 1 1 160px; padding: ${SPACING.sm} ${SPACING.md}; border: none; border-radius: ${RADIUS.md}; font-size: 1em; font-weight: bold; cursor: pointer; transition: all ${TIMING.slow}; text-align: center; }
     .autojoin-main-button.active { background: ${COLORS.success}; color: white; }
     .autojoin-main-button.inactive { background: rgba(100, 100, 100, 0.7); color: ${COLORS.textSecondary}; }
-    .autojoin-mode-config { margin-bottom: ${SPACING.sm}; padding: ${SPACING.sm}; background: ${COLORS.bgSecondary}; border-radius: ${RADIUS.md}; }
+    .autojoin-mode-config { margin-bottom: ${SPACING.xs}; padding: ${SPACING.sm}; background: ${COLORS.bgSecondary}; border-radius: ${RADIUS.md}; }
     .mode-checkbox-label { display: flex; align-items: center; gap: 6px; font-weight: bold; cursor: pointer; margin-bottom: 6px; font-size: 0.95em; color: ${COLORS.textPrimary}; }
     .mode-checkbox-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-    .player-filter-info { margin-bottom: 6px; padding: 3px 0; }
+    .player-filter-info { margin-bottom: 4px; padding: 2px 0; }
     .player-filter-info small { color: ${COLORS.textSecondary}; font-size: 0.9em; }
-    .capacity-range-wrapper { margin-top: 6px; }
-    .capacity-range-visual { position: relative; padding: 12px 0 6px 0; }
+    .capacity-range-wrapper { margin-top: 4px; }
+    .capacity-range-visual { position: relative; padding: 8px 0 4px 0; }
     .capacity-track { position: relative; height: 6px; background: ${COLORS.accentMuted}; border-radius: 3px; margin-bottom: ${SPACING.sm}; }
-    .team-count-options-centered { display: flex; justify-content: space-between; gap: 15px; margin: ${SPACING.sm} 0; }
-    .team-count-column { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; background: rgba(20, 20, 30, 0.2); padding: 6px; border-radius: ${RADIUS.sm}; }
+    .team-count-options-centered { display: flex; justify-content: space-between; gap: 10px; margin: ${SPACING.xs} 0; }
+    .team-count-column { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; background: rgba(20, 20, 30, 0.2); padding: 5px; border-radius: ${RADIUS.sm}; }
     .team-count-column label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.85em; color: ${COLORS.textPrimary}; white-space: nowrap; user-select: none; }
     .team-count-column input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
     .select-all-btn { background: ${COLORS.accentMuted}; color: ${COLORS.textPrimary}; border: 1px solid ${COLORS.borderAccent}; border-radius: ${RADIUS.sm}; padding: ${SPACING.xs} ${SPACING.sm}; font-size: 0.8em; cursor: pointer; flex: 1; text-align: center; margin: 0 2px; }
     .select-all-btn:hover { background: rgba(59, 30, 246, 0.35); }
-    .team-count-section > div:first-of-type { display: flex; gap: 5px; margin-bottom: ${SPACING.sm}; }
-    .team-count-section > label { font-size: 0.9em; color: ${COLORS.textPrimary}; font-weight: 500; margin-bottom: 5px; display: block; }
+    .team-count-section > div:first-of-type { display: flex; gap: 5px; margin-bottom: ${SPACING.xs}; }
+    .team-count-section > label { font-size: 0.9em; color: ${COLORS.textPrimary}; font-weight: 500; margin-bottom: 4px; display: block; }
     .capacity-labels { display: flex; justify-content: space-between; align-items: center; margin-top: ${SPACING.sm}; }
     .three-times-checkbox { display: flex; align-items: center; gap: ${SPACING.xs}; font-size: 0.85em; color: ${COLORS.textPrimary}; margin: 0 5px; }
     .three-times-checkbox input[type="checkbox"] { width: 15px; height: 15px; }
@@ -394,7 +462,7 @@ export function getStyles(): string {
     .capacity-label-group label { font-size: 0.9em; color: ${COLORS.textPrimary}; font-weight: normal; margin: 0; }
     .capacity-value { font-size: 0.9em; color: #FFFFFF; font-weight: 600; min-width: 40px; text-align: center; }
     .capacity-inputs-hidden { display: none; }
-    .autojoin-status { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .autojoin-status { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
     .status-indicator { width: 8px; height: 8px; border-radius: 50%; background: ${COLORS.success}; }
     .status-text { font-size: 0.9em; color: ${COLORS.textPrimary}; }
     .search-timer { font-size: 0.9em; color: rgba(147, 197, 253, 0.9); font-weight: 500; margin-left: 8px; }

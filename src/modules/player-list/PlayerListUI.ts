@@ -187,6 +187,11 @@ export class PlayerListUI {
       document.body.appendChild(this.container);
     }
 
+    const autoJoinSlot = document.createElement('div');
+    autoJoinSlot.id = 'of-autojoin-slot';
+    autoJoinSlot.className = 'of-autojoin-slot';
+    this.container.appendChild(autoJoinSlot);
+
     this.header = document.createElement('div');
     this.header.className = 'of-header of-player-list-header';
     this.header.innerHTML = `<span class="of-player-list-title">Players</span><span class="of-badge of-player-list-count">0</span>`;
@@ -200,7 +205,7 @@ export class PlayerListUI {
     this.quickTagSwitch.className = 'of-quick-tag-switch';
     const quickTagLabel = document.createElement('span');
     quickTagLabel.className = 'of-quick-tag-label';
-    quickTagLabel.textContent = 'Clan tag quick switch (last 5):';
+    quickTagLabel.textContent = 'Tag quick switch:';
     this.quickTagSwitch.appendChild(quickTagLabel);
     this.container.appendChild(this.quickTagSwitch);
 
@@ -304,8 +309,23 @@ export class PlayerListUI {
       return { clanInput, nameInput, component: usernameInputComponent };
     };
 
-    let lastClanTag = '';
     let lastUsername = '';
+
+    const commitRecentTag = () => {
+      const inputs = findInputs();
+      if (!inputs) return;
+
+      const currentClanTag = (inputs.clanInput as HTMLInputElement)?.value || '';
+      const currentUsername = (inputs.nameInput as HTMLInputElement)?.value || '';
+      const fullUsername = currentClanTag
+        ? `[${currentClanTag}] ${currentUsername}`
+        : currentUsername;
+      const tag = currentClanTag || getPlayerClanTag(fullUsername);
+
+      if (tag && tag.length >= 2) {
+        this.addRecentTag(tag);
+      }
+    };
 
     const checkUsername = () => {
       const inputs = findInputs();
@@ -313,12 +333,6 @@ export class PlayerListUI {
 
       const currentClanTag = (inputs.clanInput as HTMLInputElement)?.value || '';
       const currentUsername = (inputs.nameInput as HTMLInputElement)?.value || '';
-
-      // Track clan tag changes
-      if (currentClanTag !== lastClanTag && currentClanTag.length >= 2) {
-        lastClanTag = currentClanTag;
-        this.addRecentTag(currentClanTag);
-      }
 
       // Track full username changes (for backwards compatibility)
       const fullUsername = currentClanTag
@@ -329,9 +343,6 @@ export class PlayerListUI {
         lastUsername = fullUsername;
         this.currentPlayerUsername = fullUsername; // Track current player
         const tag = getPlayerClanTag(fullUsername);
-        if (tag) {
-          this.addRecentTag(tag);
-        }
         const didUpdateSelected = this.setSelectedClanTag(currentClanTag || tag);
         // Re-render to apply highlighting even if not in lobby
         if (!didUpdateSelected && this.clanGroups.length > 0) {
@@ -355,12 +366,18 @@ export class PlayerListUI {
       if (clanInput && !(clanInput.dataset as any).ofMonitored) {
         (clanInput.dataset as any).ofMonitored = 'true';
         clanInput.addEventListener('input', checkUsername);
-        clanInput.addEventListener('change', checkUsername);
+        clanInput.addEventListener('change', () => {
+          checkUsername();
+          commitRecentTag();
+        });
       }
       if (nameInput && !(nameInput.dataset as any).ofMonitored) {
         (nameInput.dataset as any).ofMonitored = 'true';
         nameInput.addEventListener('input', checkUsername);
-        nameInput.addEventListener('change', checkUsername);
+        nameInput.addEventListener('change', () => {
+          checkUsername();
+          commitRecentTag();
+        });
       }
     };
 
@@ -452,7 +469,7 @@ export class PlayerListUI {
 
   /**
    * Add a clan tag to recent tags list
-   * Keeps only the last 5 unique tags
+   * Keeps only the last 3 unique tags
    * If tag already exists, keeps it in its current position
    */
   private addRecentTag(tag: string): void {
@@ -460,8 +477,8 @@ export class PlayerListUI {
     // Only add if not already in the list
     if (!this.recentTags.includes(upper)) {
       this.recentTags.unshift(upper);
-      if (this.recentTags.length > 5) {
-        this.recentTags = this.recentTags.slice(0, 5);
+      if (this.recentTags.length > 3) {
+        this.recentTags = this.recentTags.slice(0, 3);
       }
       GM_setValue(STORAGE_KEYS.playerListRecentTags, this.recentTags);
       this.renderQuickTagSwitch();
@@ -472,13 +489,17 @@ export class PlayerListUI {
    * Render the quick tag switch buttons
    */
   private renderQuickTagSwitch(): void {
-    // Remove old buttons
-    const oldButtons = this.quickTagSwitch.querySelectorAll('.of-quick-tag-btn');
-    oldButtons.forEach((btn) => btn.remove());
+    // Remove old items
+    const oldItems = this.quickTagSwitch.querySelectorAll('.of-quick-tag-item');
+    oldItems.forEach((item) => item.remove());
 
     // Add buttons for recent tags
     for (const tag of this.recentTags) {
+      const item = document.createElement('div');
+      item.className = 'of-quick-tag-item';
+
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'of-quick-tag-btn';
       btn.textContent = tag;
       btn.title = `Apply [${tag}] to your username`;
@@ -486,11 +507,12 @@ export class PlayerListUI {
         this.applyClanTagToNickname(tag);
       });
 
-      const removeBtn = document.createElement('span');
-      removeBtn.textContent = ' ×';
-      removeBtn.style.cursor = 'pointer';
-      removeBtn.style.marginLeft = '4px';
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'of-quick-tag-remove';
+      removeBtn.textContent = 'x';
       removeBtn.title = 'Remove from recent tags';
+      removeBtn.setAttribute('aria-label', `Remove ${tag} from recent tags`);
       removeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.recentTags = this.recentTags.filter((t) => t !== tag);
@@ -498,8 +520,9 @@ export class PlayerListUI {
         this.renderQuickTagSwitch();
       });
 
-      btn.appendChild(removeBtn);
-      this.quickTagSwitch.appendChild(btn);
+      item.appendChild(btn);
+      item.appendChild(removeBtn);
+      this.quickTagSwitch.appendChild(item);
     }
   }
 

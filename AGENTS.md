@@ -171,7 +171,7 @@ Track and organize players in your current lobby with real-time updates:
 
 Rapidly switch between different clan identities:
 
-- **Recent Tags Memory**: Automatically remembers your last 5 used clan tags
+- **Recent Tags Memory**: Automatically remembers your last 3 used clan tags
 - **One-Click Switching**: Apply any recent clan tag to your username with a single click
 - **Auto-Join Option**: Optionally rejoin the lobby automatically when switching clan tags to ensure proper visibility
 - **Tag Management**: Remove clan tags from your recent list if no longer needed
@@ -235,8 +235,8 @@ Tailor the experience to your preferences:
 
 ### Switching Between Clan Identities
 
-1. Look at the "Clan tag quick switch" section at the top of the player list
-2. Click any of your recent clan tags (last 5 are saved)
+1. Look at the "Tag quick switch" section at the top of the player list
+2. Click any of your recent clan tags (last 3 are saved)
 3. Your username is instantly updated with the new clan tag
 4. Optionally, the system rejoins the lobby to reflect your new identity
 5. Remove unwanted tags using the "x" button
@@ -296,7 +296,7 @@ All user preferences are automatically saved:
 - Sound notification preference
 - Filter toggle states (show only clans, join on clan use)
 - Collapsed clan groups
-- Recent clan tags (last 5)
+- Recent clan tags (last 3)
 - Auto-join enabled/disabled state
 - Join mode (auto-join vs notify)
 
