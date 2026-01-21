@@ -319,9 +319,9 @@ export class AutoJoinUI {
 
     const gameDetails = getGameDetailsText(lobby);
     notification.innerHTML = `
-      <div>🎮 Game Found!</div>
-      <div style="font-size: 0.9em; margin-top: 8px;">${gameDetails}</div>
-      <div style="font-size: 0.8em; margin-top: 4px; opacity: 0.8;">Click to dismiss</div>
+      <div class="notification-title">Game Found</div>
+      <div class="notification-detail">${gameDetails}</div>
+      <div class="notification-hint">Click to dismiss</div>
     `;
 
     notification.addEventListener('click', () => {
@@ -473,23 +473,22 @@ export class AutoJoinUI {
 
   private updateClanmateButtonState(): void {
     const button = document.getElementById('autojoin-clanmate-button') as HTMLButtonElement | null;
-    const hint = document.getElementById('autojoin-clanmate-hint');
     if (!button) return;
 
     const baseHint = 'One-shot. Uses clan tag input. Independent of Auto-Join status.';
     const hasClanTag = !!this.lastActiveClanTag;
+    const tagLabel = this.lastActiveClanTag ? this.lastActiveClanTag.toUpperCase() : null;
 
     button.disabled = !hasClanTag;
+    button.setAttribute('title', baseHint);
     if (this.clanmateWatcherArmed) {
       button.textContent = 'Waiting for clanmate...';
       button.classList.add('armed');
     } else {
-      button.textContent = 'Join when clanmate appears';
+      button.textContent = hasClanTag
+        ? `Join the game if any member of [${tagLabel}] is in the lobby`
+        : 'Set your clan tag to enable';
       button.classList.remove('armed');
-    }
-
-    if (hint) {
-      hint.textContent = hasClanTag ? baseHint : `${baseHint} Set your clan tag to enable.`;
     }
   }
 
@@ -634,10 +633,14 @@ export class AutoJoinUI {
     if (statusText && statusIndicator) {
       if (this.autoJoinEnabled) {
         statusText.textContent = 'Active';
-        statusIndicator.style.background = '#5fd785';
+        statusIndicator.style.background = '#38d9a9';
+        statusIndicator.classList.add('active');
+        statusIndicator.classList.remove('inactive');
       } else {
         statusText.textContent = 'Inactive';
         statusIndicator.style.background = '#888';
+        statusIndicator.classList.remove('active');
+        statusIndicator.classList.add('inactive');
       }
     }
   }
@@ -983,22 +986,37 @@ export class AutoJoinUI {
     this.panel.className = 'of-panel autojoin-panel';
     this.panel.innerHTML = `
       <div class="of-header autojoin-header">
-        <span>Auto-Join</span>
+        <div class="autojoin-title">
+          <span class="autojoin-title-text">Tactical Auto-Join</span>
+          <span class="autojoin-title-sub">HUD ACTIVE</span>
+        </div>
         <button type="button" id="autojoin-collapse-toggle" class="autojoin-collapse-button" aria-label="Collapse Auto-Join" title="Collapse">▾</button>
       </div>
       <div class="autojoin-body">
         <div class="of-content autojoin-content">
-          <div class="autojoin-top-row">
+          <div class="autojoin-status-bar">
+            <div class="autojoin-status" id="autojoin-status">
+              <span class="status-indicator"></span>
+              <div class="autojoin-status-lines">
+                <span class="status-text">Active</span>
+                <span class="search-timer" id="search-timer" style="display: none;"></span>
+              </div>
+            </div>
+            <label class="autojoin-toggle-label">
+              <input type="checkbox" id="autojoin-sound-toggle">
+              <span>Sound</span>
+            </label>
+          </div>
+          <div class="autojoin-action-row">
             <button type="button" id="autojoin-main-button" class="autojoin-main-button active">Auto-Join</button>
+            <button type="button" id="autojoin-clanmate-button" class="autojoin-clanmate-button">Join the game if any member of your clan is in the lobby</button>
           </div>
-          <div class="autojoin-clanmate-row">
-            <button type="button" id="autojoin-clanmate-button" class="autojoin-clanmate-button">Join when clanmate appears</button>
-            <div class="autojoin-clanmate-hint" id="autojoin-clanmate-hint">One-shot. Uses clan tag input. Independent of Auto-Join status.</div>
-          </div>
-          <div class="autojoin-config-grid">
+          <div class="autojoin-section">
+            <div class="autojoin-section-title">Modes</div>
+            <div class="autojoin-config-grid">
             <div class="autojoin-mode-config autojoin-config-card">
               <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA"><span>FFA</span></label>
-              <div class="autojoin-mode-config" id="ffa-config" style="display: none;">
+              <div class="autojoin-mode-inner" id="ffa-config" style="display: none;">
                 <div class="player-filter-info"><small>Filter by max players:</small></div>
                 <div class="capacity-range-wrapper">
                   <div class="capacity-range-visual">
@@ -1021,7 +1039,7 @@ export class AutoJoinUI {
             </div>
             <div class="autojoin-mode-config autojoin-config-card">
               <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-team" name="gameMode" value="Team"><span>Team</span></label>
-              <div class="autojoin-mode-config" id="team-config" style="display: none;">
+              <div class="autojoin-mode-inner" id="team-config" style="display: none;">
                 <div class="team-count-section">
                   <label>Teams (optional):</label>
                   <div>
@@ -1069,11 +1087,10 @@ export class AutoJoinUI {
               </div>
             </div>
           </div>
+          </div>
         </div>
         <div class="of-footer autojoin-footer">
-          <div class="autojoin-status" id="autojoin-status"><span class="status-indicator"></span><span class="status-text">Active</span><span class="search-timer" id="search-timer" style="display: none;"></span></div>
           <div class="autojoin-settings">
-            <label class="autojoin-toggle-label"><input type="checkbox" id="autojoin-sound-toggle"><span>🔔 Sound</span></label>
             <label class="autojoin-toggle-label"><input type="checkbox" id="autojoin-auto-rejoin"><span>Auto rejoin on clan tag apply</span></label>
           </div>
         </div>

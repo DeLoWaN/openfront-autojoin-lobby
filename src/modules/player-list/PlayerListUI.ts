@@ -40,7 +40,6 @@ export class PlayerListUI {
   private sleeping: boolean;
   private debugSequence: string[] = [];
   private showOnlyClans: boolean = true;
-  private collapseStates: Map<string, boolean> = new Map();
   private recentTags: string[] = [];
   private usernameCheckInterval: ReturnType<typeof setInterval> | null = null;
   private usernameAttachInterval: ReturnType<typeof setInterval> | null = null;
@@ -234,7 +233,12 @@ export class PlayerListUI {
 
     this.header = document.createElement('div');
     this.header.className = 'of-header of-player-list-header';
-    this.header.innerHTML = `<span class="of-player-list-title">Players</span><span class="of-badge of-player-list-count">0</span>`;
+    this.header.innerHTML = `
+      <div class="of-header-title">
+        <span class="of-player-list-title">Lobby Intel</span>
+        <span class="of-badge of-player-list-count">0</span>
+      </div>
+    `;
     this.container.appendChild(this.header);
 
     this.debugInfo = document.createElement('div');
@@ -245,7 +249,7 @@ export class PlayerListUI {
     this.quickTagSwitch.className = 'of-quick-tag-switch';
     const quickTagLabel = document.createElement('span');
     quickTagLabel.className = 'of-quick-tag-label';
-    quickTagLabel.textContent = 'Tag quick switch:';
+    quickTagLabel.textContent = 'Quick tags';
     this.quickTagSwitch.appendChild(quickTagLabel);
     this.container.appendChild(this.quickTagSwitch);
 
@@ -420,13 +424,6 @@ export class PlayerListUI {
       }
     }
 
-    const savedCollapseStates = GM_getValue<Record<string, boolean> | undefined>(
-      STORAGE_KEYS.playerListCollapseStates
-    );
-    if (savedCollapseStates) {
-      this.collapseStates = new Map(Object.entries(savedCollapseStates));
-    }
-
     const savedRecentTags = GM_getValue<string[] | undefined>(STORAGE_KEYS.playerListRecentTags);
     if (savedRecentTags && Array.isArray(savedRecentTags)) {
       this.recentTags = savedRecentTags;
@@ -438,14 +435,6 @@ export class PlayerListUI {
    */
   private saveSettings(): void {
     GM_setValue(STORAGE_KEYS.playerListShowOnlyClans, this.showOnlyClans);
-  }
-
-  /**
-   * Save collapse states to GM_storage
-   */
-  private saveCollapseStates(): void {
-    const obj = Object.fromEntries(this.collapseStates);
-    GM_setValue(STORAGE_KEYS.playerListCollapseStates, obj);
   }
 
   private getAutoRejoinOnClanChange(): boolean {
@@ -554,45 +543,6 @@ export class PlayerListUI {
   }
 
   /**
-   * Toggle collapse state of a clan group
-   */
-  private toggleClanGroup(clanTag: string, groupEl: HTMLElement): void {
-    const playersEl = groupEl.querySelector('.of-clan-group-players') as HTMLElement;
-    const arrowEl = groupEl.querySelector('.of-clan-arrow') as HTMLElement;
-    const isExpanded = !groupEl.classList.contains('collapsed');
-
-    if (isExpanded) {
-      groupEl.classList.add('collapsed');
-      arrowEl.textContent = '►';
-      this.collapseStates.set(clanTag.toLowerCase(), true);
-      if (this.settings.animationsEnabled) {
-        playersEl.style.maxHeight = playersEl.scrollHeight + 'px';
-        requestAnimationFrame(() => {
-          playersEl.style.maxHeight = '0';
-        });
-      } else {
-        playersEl.style.display = 'none';
-      }
-    } else {
-      groupEl.classList.remove('collapsed');
-      arrowEl.textContent = '▼';
-      this.collapseStates.set(clanTag.toLowerCase(), false);
-      if (this.settings.animationsEnabled) {
-        playersEl.style.maxHeight = playersEl.scrollHeight + 'px';
-        const handler = () => {
-          playersEl.style.maxHeight = 'none';
-          playersEl.removeEventListener('transitionend', handler);
-        };
-        playersEl.addEventListener('transitionend', handler);
-      } else {
-        playersEl.style.display = '';
-      }
-    }
-
-    this.saveCollapseStates();
-  }
-
-  /**
    * Create a clan group element with header and players
    */
   private createClanGroupEl(tag: string, players: string[], stats: any, isNew: boolean = false): HTMLElement {
@@ -613,17 +563,18 @@ export class PlayerListUI {
         stats.wins && stats.losses
           ? (stats.wins / stats.losses).toFixed(2)
           : stats.weightedWLRatio?.toFixed(2) || '0.00';
+      const wins = stats.wins?.toLocaleString() || 0;
+      const losses = stats.losses?.toLocaleString() || 0;
       statsHtml = `
-        <span>Wins: ${stats.wins?.toLocaleString() || 0}</span>
+        <span>W ${wins}</span>
         <span>•</span>
-        <span>Losses: ${stats.losses?.toLocaleString() || 0}</span>
+        <span>L ${losses}</span>
         <span>•</span>
-        <span>Ratio: ${ratio}</span>
+        <span>R ${ratio}</span>
       `;
     }
 
     headerEl.innerHTML = `
-      <span class="of-clan-arrow">▼</span>
       <span class="of-clan-tag">[${tag}]</span>
       <span class="of-clan-count">${players.length}</span>
       <div class="of-clan-actions">
@@ -631,13 +582,6 @@ export class PlayerListUI {
         <button class="of-clan-use-btn" title="Apply [${tag}] to your username">Use tag</button>
       </div>
     `;
-
-    headerEl.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (!target.classList.contains('of-clan-use-btn')) {
-        this.toggleClanGroup(tag, groupEl);
-      }
-    });
 
     const useBtn = headerEl.querySelector('.of-clan-use-btn');
     if (useBtn) {
@@ -656,14 +600,6 @@ export class PlayerListUI {
 
     groupEl.appendChild(headerEl);
     groupEl.appendChild(playersEl);
-
-    // Restore collapse state
-    const isCollapsed = this.collapseStates.get(tag.toLowerCase());
-    if (isCollapsed) {
-      groupEl.classList.add('collapsed');
-      headerEl.querySelector('.of-clan-arrow')!.textContent = '►';
-      playersEl.style.maxHeight = '0';
-    }
 
     return groupEl;
   }
