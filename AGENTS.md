@@ -331,6 +331,34 @@ This userscript is designed specifically for OpenFront.io gameplay and integrate
 
 The code is a collaborative effort by DeLoVaN, SyntaxMenace, DeepSeek, and Claude.
 
-# Proposals
+# Version Management
 
-When you complete a new Openfront proposal, upgrade the version number. Also run "npm run build:prod"
+The version number is centralized in `package.json` and automatically propagates to:
+- `package-lock.json` (via `npm install`)
+- `dist/bundle.user.js` userscript header (via build process)
+
+## How to Upgrade Version
+
+When completing a new OpenSpec proposal or making a release:
+
+1. **Update version in package.json**:
+   ```bash
+   npm version patch   # Bug fixes (2.5.0 → 2.5.1)
+   npm version minor   # New features (2.5.0 → 2.6.0)
+   npm version major   # Breaking changes (2.5.0 → 3.0.0)
+   ```
+
+2. **Rebuild the production bundle**:
+   ```bash
+   npm run build:prod
+   ```
+
+3. **Verify version consistency**:
+   ```bash
+   grep '"version"' package.json
+   grep '@version' dist/bundle.user.js
+   ```
+
+The `npm version` command automatically updates `package-lock.json`. The build process reads the version from `package.json` and injects it into the userscript header.
+
+**Note**: Always run `npm run build:prod` after version changes to ensure the bundle reflects the new version.
