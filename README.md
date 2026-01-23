@@ -22,7 +22,7 @@ This userscript combines a live lobby player list with an intelligent auto-join 
 
 ### Install
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Greasemonkey](https://www.greasespot.net/)
-2. Install from greasyfork: [https://raw.githubusercontent.com/DeLoWaN/openfront-autojoin-lobby/main/dist/bundle.user.js](https://greasyfork.org/en/scripts/555551-openfront-io-bundle-player-list-auto-join)
+2. Install from greasyfork: [https://greasyfork.org/en/scripts/555551-openfront-io-bundle-player-list-auto-join](https://greasyfork.org/en/scripts/555551-openfront-io-bundle-player-list-auto-join)
 3. Confirm installation when prompted
 4. Visit https://openfront.io/ to use the script
 
