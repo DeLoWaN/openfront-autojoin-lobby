@@ -997,10 +997,8 @@ export class AutoJoinUI {
           <div class="autojoin-status-bar">
             <div class="autojoin-status" id="autojoin-status">
               <span class="status-indicator"></span>
-              <div class="autojoin-status-lines">
-                <span class="status-text">Active</span>
-                <span class="search-timer" id="search-timer" style="display: none;"></span>
-              </div>
+              <span class="status-text">Active</span>
+              <span class="search-timer" id="search-timer" style="display: none;"></span>
             </div>
             <label class="autojoin-toggle-label">
               <input type="checkbox" id="autojoin-sound-toggle">

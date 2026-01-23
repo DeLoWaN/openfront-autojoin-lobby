@@ -659,8 +659,7 @@ export function getStyles(): string {
     .capacity-label-group label { font-size: 0.8em; color: ${COLORS.textSecondary}; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-family: ${FONTS.display}; }
     .capacity-value { font-size: 0.85em; color: #FFFFFF; font-weight: 600; min-width: 40px; text-align: center; }
     .capacity-inputs-hidden { display: none; }
-    .autojoin-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
-    .autojoin-status-lines { display: flex; flex-direction: column; gap: 2px; }
+    .autojoin-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; flex-wrap: wrap; }
     @keyframes statusPulse {
       0% { box-shadow: 0 0 0 0 rgba(20, 220, 170, 0.4); }
       70% { box-shadow: 0 0 0 8px rgba(20, 220, 170, 0); }

@@ -663,8 +663,7 @@
     .capacity-label-group label { font-size: 0.8em; color: ${s.textSecondary}; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-family: ${f.display}; }
     .capacity-value { font-size: 0.85em; color: #FFFFFF; font-weight: 600; min-width: 40px; text-align: center; }
     .capacity-inputs-hidden { display: none; }
-    .autojoin-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
-    .autojoin-status-lines { display: flex; flex-direction: column; gap: 2px; }
+    .autojoin-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; flex-wrap: wrap; }
     @keyframes statusPulse {
       0% { box-shadow: 0 0 0 0 rgba(20, 220, 170, 0.4); }
       70% { box-shadow: 0 0 0 8px rgba(20, 220, 170, 0); }
@@ -760,10 +759,8 @@
           <div class="autojoin-status-bar">
             <div class="autojoin-status" id="autojoin-status">
               <span class="status-indicator"></span>
-              <div class="autojoin-status-lines">
-                <span class="status-text">Active</span>
-                <span class="search-timer" id="search-timer" style="display: none;"></span>
-              </div>
+              <span class="status-text">Active</span>
+              <span class="search-timer" id="search-timer" style="display: none;"></span>
             </div>
             <label class="autojoin-toggle-label">
               <input type="checkbox" id="autojoin-sound-toggle">
