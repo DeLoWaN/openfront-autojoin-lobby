@@ -32,8 +32,8 @@ export function stripClanTag(name: string): string {
   if (!name) {
     return name;
   }
-  // Remove [TAG] or [TAG] (with optional space after)
-  return name.trim().replace(/^\[([a-zA-Z0-9]{2,5})\]\s*/, '');
+  // Remove [TAG] and at most one trailing space after the tag
+  return name.replace(/^\[([a-zA-Z0-9]{2,5})\]\s?/, '');
 }
 
 /**

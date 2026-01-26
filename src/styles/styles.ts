@@ -128,24 +128,6 @@ export function getStyles(): string {
       color: ${COLORS.textMuted};
       letter-spacing: 0.2em;
     }
-    .autojoin-collapse-button {
-      background: transparent;
-      border: 1px solid transparent;
-      color: ${COLORS.textPrimary};
-      border-radius: ${RADIUS.sm};
-      padding: 2px 8px;
-      cursor: pointer;
-      font-size: 1em;
-      line-height: 1;
-      transition: transform ${TIMING.fast}, border-color ${TIMING.fast}, background ${TIMING.fast};
-    }
-    .autojoin-collapse-button:hover {
-      border-color: ${COLORS.borderAccent};
-      background: ${COLORS.bgHover};
-    }
-    .autojoin-panel.autojoin-collapsed .autojoin-collapse-button {
-      transform: rotate(-90deg);
-    }
     .of-content { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(80,110,160,0.4) transparent; }
     .of-content::-webkit-scrollbar { width: 7px; }
     .of-content::-webkit-scrollbar-thumb { background: rgba(80,110,160,0.4); border-radius: 5px; }
@@ -542,7 +524,6 @@ export function getStyles(): string {
     }
     .autojoin-panel::after { display: none; }
     .autojoin-panel.hidden { display: none; }
-    .autojoin-panel.autojoin-collapsed .autojoin-body { display: none; }
     .autojoin-body { display: flex; flex-direction: column; }
     .autojoin-content { display: flex; flex-direction: column; gap: ${SPACING.sm}; padding: ${SPACING.sm} ${SPACING.md} ${SPACING.md}; }
     .autojoin-status-bar {
@@ -560,6 +541,62 @@ export function getStyles(): string {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: ${SPACING.sm};
+    }
+    .autojoin-modes {
+      display: flex;
+      flex-direction: column;
+      gap: ${SPACING.xs};
+    }
+    .autojoin-modes-rail {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px ${SPACING.sm};
+      border-radius: ${RADIUS.md};
+      border: 1px solid ${COLORS.border};
+      background: rgba(14, 22, 34, 0.55);
+      cursor: pointer;
+      transition: background ${TIMING.fast}, border-color ${TIMING.fast};
+    }
+    .autojoin-modes-rail:hover {
+      border-color: ${COLORS.borderAccent};
+      background: rgba(20, 30, 46, 0.75);
+    }
+    .autojoin-modes-caret {
+      color: ${COLORS.textMuted};
+      font-size: 0.9em;
+      transition: transform ${TIMING.fast}, color ${TIMING.fast};
+    }
+    .autojoin-modes-label {
+      font-size: 0.7em;
+      color: ${COLORS.textMuted};
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-family: ${FONTS.display};
+      margin-right: 2px;
+    }
+    .autojoin-modes-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: ${COLORS.textMuted};
+      opacity: 0.7;
+    }
+    .autojoin-modes-body {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      margin-top: 0;
+      transition: max-height ${TIMING.slow}, opacity ${TIMING.fast}, margin-top ${TIMING.fast};
+    }
+    .autojoin-modes.is-expanded .autojoin-modes-body {
+      max-height: 2000px;
+      opacity: 1;
+      margin-top: ${SPACING.xs};
+    }
+    .autojoin-modes.is-expanded .autojoin-modes-caret {
+      transform: rotate(90deg);
+      color: ${COLORS.textPrimary};
     }
     .autojoin-clanmate-button {
       width: 100%;

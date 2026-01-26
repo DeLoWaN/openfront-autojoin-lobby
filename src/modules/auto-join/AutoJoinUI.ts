@@ -42,7 +42,6 @@ export class AutoJoinUI {
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private gameInfoInterval: ReturnType<typeof setInterval> | null = null;
   private notificationTimeout: ReturnType<typeof setTimeout> | null = null;
-  private isCollapsed: boolean = false;
 
   // DOM elements
   private panel!: HTMLDivElement;
@@ -454,15 +453,12 @@ export class AutoJoinUI {
   }
 
   /**
-   * Toggle the auto-join panel body visibility
+   * Toggle the Modes section visibility (hover-reveal)
    */
-  private setCollapsed(collapsed: boolean): void {
-    this.isCollapsed = collapsed;
-    this.panel.classList.toggle('autojoin-collapsed', collapsed);
-    const toggleButton = document.getElementById('autojoin-collapse-toggle');
-    if (toggleButton) {
-      toggleButton.setAttribute('aria-expanded', String(!collapsed));
-      toggleButton.setAttribute('title', collapsed ? 'Expand' : 'Collapse');
+  private setModesExpanded(expanded: boolean): void {
+    const modes = document.getElementById('autojoin-modes');
+    if (modes) {
+      modes.classList.toggle('is-expanded', expanded);
     }
   }
 
@@ -861,22 +857,12 @@ export class AutoJoinUI {
       }
     });
 
-    // Collapse toggle (entire header)
-    this.panel
-      .querySelector('.autojoin-header')
-      ?.addEventListener('click', (event) => {
-        const target = event.target as HTMLElement;
-        if (target.closest('#autojoin-collapse-toggle')) {
-          return;
-        }
-        this.setCollapsed(!this.isCollapsed);
-      });
-
-    // Collapse toggle (button)
-    document.getElementById('autojoin-collapse-toggle')?.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.setCollapsed(!this.isCollapsed);
-    });
+    // Modes hover reveal
+    const modes = document.getElementById('autojoin-modes');
+    if (modes) {
+      modes.addEventListener('mouseenter', () => this.setModesExpanded(true));
+      modes.addEventListener('mouseleave', () => this.setModesExpanded(false));
+    }
 
     // FFA checkbox
     const ffaCheckbox = document.getElementById('autojoin-ffa') as HTMLInputElement;
@@ -1017,7 +1003,6 @@ export class AutoJoinUI {
           <span class="autojoin-title-text">Tactical Auto-Join</span>
           <span class="autojoin-title-sub">HUD ACTIVE</span>
         </div>
-        <button type="button" id="autojoin-collapse-toggle" class="autojoin-collapse-button" aria-label="Collapse Auto-Join" title="Collapse">▾</button>
       </div>
       <div class="autojoin-body">
         <div class="of-content autojoin-content">
@@ -1036,85 +1021,96 @@ export class AutoJoinUI {
             <button type="button" id="autojoin-main-button" class="autojoin-main-button active">Auto-Join</button>
             <button type="button" id="autojoin-clanmate-button" class="autojoin-clanmate-button">Join the game if any member of your clan is in the lobby</button>
           </div>
-          <div class="autojoin-section">
-            <div class="autojoin-section-title">Modes</div>
-            <div class="autojoin-config-grid">
-            <div class="autojoin-mode-config autojoin-config-card">
-              <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA"><span>FFA</span></label>
-              <div class="autojoin-mode-inner" id="ffa-config" style="display: none;">
-                <div class="player-filter-info"><small>Filter by max players:</small></div>
-                <div class="capacity-range-wrapper">
-                  <div class="capacity-range-visual">
-                    <div class="capacity-track">
-                      <div class="capacity-range-fill" id="ffa-range-fill"></div>
-                      <input type="range" id="autojoin-ffa-min-slider" min="1" max="100" value="1" class="capacity-slider capacity-slider-min">
-                      <input type="range" id="autojoin-ffa-max-slider" min="1" max="100" value="100" class="capacity-slider capacity-slider-max">
-                    </div>
-                    <div class="capacity-labels">
-                      <div class="capacity-label-group"><label for="autojoin-ffa-min-slider">Min:</label><span class="capacity-value" id="ffa-min-value">Any</span></div>
-                      <div class="capacity-label-group"><label for="autojoin-ffa-max-slider">Max:</label><span class="capacity-value" id="ffa-max-value">Any</span></div>
+          <div class="autojoin-modes" id="autojoin-modes">
+            <div class="autojoin-modes-rail" aria-hidden="true">
+              <span class="autojoin-modes-caret">▸</span>
+              <span class="autojoin-modes-label">Modes</span>
+              <span class="autojoin-modes-dot"></span>
+              <span class="autojoin-modes-dot"></span>
+              <span class="autojoin-modes-dot"></span>
+            </div>
+            <div class="autojoin-modes-body">
+              <div class="autojoin-section">
+                <div class="autojoin-section-title">Modes</div>
+                <div class="autojoin-config-grid">
+                <div class="autojoin-mode-config autojoin-config-card">
+                  <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-ffa" name="gameMode" value="FFA"><span>FFA</span></label>
+                  <div class="autojoin-mode-inner" id="ffa-config" style="display: none;">
+                    <div class="player-filter-info"><small>Filter by max players:</small></div>
+                    <div class="capacity-range-wrapper">
+                      <div class="capacity-range-visual">
+                        <div class="capacity-track">
+                          <div class="capacity-range-fill" id="ffa-range-fill"></div>
+                          <input type="range" id="autojoin-ffa-min-slider" min="1" max="100" value="1" class="capacity-slider capacity-slider-min">
+                          <input type="range" id="autojoin-ffa-max-slider" min="1" max="100" value="100" class="capacity-slider capacity-slider-max">
+                        </div>
+                        <div class="capacity-labels">
+                          <div class="capacity-label-group"><label for="autojoin-ffa-min-slider">Min:</label><span class="capacity-value" id="ffa-min-value">Any</span></div>
+                          <div class="capacity-label-group"><label for="autojoin-ffa-max-slider">Max:</label><span class="capacity-value" id="ffa-max-value">Any</span></div>
+                        </div>
+                      </div>
+                      <div class="capacity-inputs-hidden">
+                        <input type="number" id="autojoin-ffa-min" min="1" max="100" style="display: none;">
+                        <input type="number" id="autojoin-ffa-max" min="1" max="100" style="display: none;">
+                      </div>
                     </div>
                   </div>
-                  <div class="capacity-inputs-hidden">
-                    <input type="number" id="autojoin-ffa-min" min="1" max="100" style="display: none;">
-                    <input type="number" id="autojoin-ffa-max" min="1" max="100" style="display: none;">
+                </div>
+                <div class="autojoin-mode-config autojoin-config-card">
+                  <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-hvn" name="gameMode" value="HvN"><span>Humans Vs Nations</span></label>
+                </div>
+                <div class="autojoin-mode-config autojoin-config-card">
+                  <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-team" name="gameMode" value="Team"><span>Team</span></label>
+                  <div class="autojoin-mode-inner" id="team-config" style="display: none;">
+                    <div class="team-count-section">
+                      <label>Teams (optional):</label>
+                      <div>
+                        <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
+                        <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
+                      </div>
+                      <div class="team-count-options-centered">
+                        <div class="team-count-column">
+                          <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
+                          <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
+                          <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
+                        </div>
+                        <div class="team-count-column">
+                          <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
+                          <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
+                          <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
+                        </div>
+                        <div class="team-count-column">
+                          <label><input type="checkbox" id="autojoin-team-5" value="5"> 5 teams</label>
+                          <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
+                          <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="player-filter-info"><small>Filter by players per team:</small></div>
+                    <div class="capacity-range-wrapper">
+                      <div class="capacity-range-visual">
+                        <div class="capacity-track">
+                          <div class="capacity-range-fill" id="team-range-fill"></div>
+                          <input type="range" id="autojoin-team-min-slider" min="1" max="50" value="1" class="capacity-slider capacity-slider-min">
+                          <input type="range" id="autojoin-team-max-slider" min="1" max="50" value="50" class="capacity-slider capacity-slider-max">
+                        </div>
+                        <div class="capacity-labels">
+                          <div class="capacity-label-group"><label for="autojoin-team-min-slider">Min:</label><span class="capacity-value" id="team-min-value">1</span></div>
+                          <div class="three-times-checkbox"><label for="autojoin-team-three-times">3×</label><input type="checkbox" id="autojoin-team-three-times"></div>
+                          <div class="capacity-label-group"><label for="autojoin-team-max-slider">Max:</label><span class="capacity-value" id="team-max-value">50</span></div>
+                        </div>
+                      </div>
+                      <div class="capacity-inputs-hidden">
+                        <input type="number" id="autojoin-team-min" min="1" max="50" style="display: none;">
+                        <input type="number" id="autojoin-team-max" min="1" max="50" style="display: none;">
+                      </div>
+                    </div>
+                    <div class="current-game-info" id="current-game-info" style="display: none;"></div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="autojoin-mode-config autojoin-config-card">
-              <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-hvn" name="gameMode" value="HvN"><span>Humans Vs Nations</span></label>
-            </div>
-            <div class="autojoin-mode-config autojoin-config-card">
-              <label class="mode-checkbox-label"><input type="checkbox" id="autojoin-team" name="gameMode" value="Team"><span>Team</span></label>
-              <div class="autojoin-mode-inner" id="team-config" style="display: none;">
-                <div class="team-count-section">
-                  <label>Teams (optional):</label>
-                  <div>
-                    <button type="button" id="autojoin-team-select-all" class="select-all-btn">Select All</button>
-                    <button type="button" id="autojoin-team-deselect-all" class="select-all-btn">Deselect All</button>
-                  </div>
-                  <div class="team-count-options-centered">
-                    <div class="team-count-column">
-                      <label><input type="checkbox" id="autojoin-team-duos" value="Duos"> Duos</label>
-                      <label><input type="checkbox" id="autojoin-team-trios" value="Trios"> Trios</label>
-                      <label><input type="checkbox" id="autojoin-team-quads" value="Quads"> Quads</label>
-                    </div>
-                    <div class="team-count-column">
-                      <label><input type="checkbox" id="autojoin-team-2" value="2"> 2 teams</label>
-                      <label><input type="checkbox" id="autojoin-team-3" value="3"> 3 teams</label>
-                      <label><input type="checkbox" id="autojoin-team-4" value="4"> 4 teams</label>
-                    </div>
-                    <div class="team-count-column">
-                      <label><input type="checkbox" id="autojoin-team-5" value="5"> 5 teams</label>
-                      <label><input type="checkbox" id="autojoin-team-6" value="6"> 6 teams</label>
-                      <label><input type="checkbox" id="autojoin-team-7" value="7"> 7 teams</label>
-                    </div>
-                  </div>
-                </div>
-                <div class="player-filter-info"><small>Filter by players per team:</small></div>
-                <div class="capacity-range-wrapper">
-                  <div class="capacity-range-visual">
-                    <div class="capacity-track">
-                      <div class="capacity-range-fill" id="team-range-fill"></div>
-                      <input type="range" id="autojoin-team-min-slider" min="1" max="50" value="1" class="capacity-slider capacity-slider-min">
-                      <input type="range" id="autojoin-team-max-slider" min="1" max="50" value="50" class="capacity-slider capacity-slider-max">
-                    </div>
-                    <div class="capacity-labels">
-                      <div class="capacity-label-group"><label for="autojoin-team-min-slider">Min:</label><span class="capacity-value" id="team-min-value">1</span></div>
-                      <div class="three-times-checkbox"><label for="autojoin-team-three-times">3×</label><input type="checkbox" id="autojoin-team-three-times"></div>
-                      <div class="capacity-label-group"><label for="autojoin-team-max-slider">Max:</label><span class="capacity-value" id="team-max-value">50</span></div>
-                    </div>
-                  </div>
-                  <div class="capacity-inputs-hidden">
-                    <input type="number" id="autojoin-team-min" min="1" max="50" style="display: none;">
-                    <input type="number" id="autojoin-team-max" min="1" max="50" style="display: none;">
-                  </div>
-                </div>
-                <div class="current-game-info" id="current-game-info" style="display: none;"></div>
               </div>
             </div>
-          </div>
           </div>
         </div>
         <div class="of-footer autojoin-footer">
@@ -1134,7 +1130,7 @@ export class AutoJoinUI {
     }
 
     this.setupEventListeners();
-    this.setCollapsed(false);
+    this.setModesExpanded(false);
     this.loadUIFromSettings();
     this.updateClanmateButtonState();
     this.initializeSlider(
