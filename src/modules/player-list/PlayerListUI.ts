@@ -10,11 +10,13 @@
  */
 
 import { STORAGE_KEYS } from '@/config/constants';
+import { FALLBACK_COLORS, HUMAN_COLORS, type RGB } from '@/config/clanColors';
 import { ResizeHandler } from '@/utils/ResizeHandler';
 import { LobbyUtils } from '@/utils/LobbyUtils';
 import { URLObserver } from '@/utils/URLObserver';
 import { ClanLeaderboardCache } from '@/data/ClanLeaderboardCache';
-import type { Lobby, PanelSize } from '@/types/game';
+import type { Lobby, PanelSize, GameConfig } from '@/types/game';
+import { ColorAllocator, TeamColorAllocator, rgbToCss, rgbaToCss } from '@/utils/TeamColorAllocator';
 import type { PlayerListSettings, ClanGroup } from './PlayerListTypes';
 import { DEFAULT_SETTINGS } from './PlayerListTypes';
 import {
@@ -24,6 +26,9 @@ import {
   fetchGameData,
   diffPlayerSets,
   stripClanTag,
+  computeClanTeamMap,
+  getTeamListForLobby,
+  mapNameToFileKey,
 } from './PlayerListHelpers';
 
 // Module-level variables for game tracking
@@ -55,6 +60,14 @@ export class PlayerListUI {
   private playerListUpdateSubscribers: Array<
     (payload: { activeClanTag: string | null; hasClanmateMatch: boolean }) => void
   > = [];
+  private lobbyConfig: GameConfig | null = null;
+  private nationCount: number = 0;
+  private lastMapKey: string | null = null;
+  private currentGameId: string | null = null;
+  private teamColorAllocator = new TeamColorAllocator();
+  private clanColorAllocator = new ColorAllocator(HUMAN_COLORS, FALLBACK_COLORS);
+  private clanColorMap: Map<string, RGB> = new Map();
+  private clanTeamMap: Map<string, string> = new Map();
 
   // DOM elements
   private container!: HTMLDivElement;
@@ -90,6 +103,11 @@ export class PlayerListUI {
     if (!lobbies || !lobbies.length) {
       LAST_GAME_ID = LAST_WORKER_ID = null;
       this.lastFetchedGameId = null;
+      this.currentGameId = null;
+      this.lobbyConfig = null;
+      this.nationCount = 0;
+      this.lastMapKey = null;
+      this.resetColorAllocators();
       this.updateListWithNames([]);
       return;
     }
@@ -98,6 +116,17 @@ export class PlayerListUI {
     if (!firstLobby) return;
 
     const gameId = firstLobby.gameID;
+    if (this.currentGameId !== gameId) {
+      this.currentGameId = gameId;
+      this.resetColorAllocators();
+      this.nationCount = 0;
+      this.lastMapKey = null;
+    }
+
+    this.lobbyConfig = firstLobby.gameConfig ?? null;
+    if (this.lobbyConfig) {
+      void this.updateNationCount(this.lobbyConfig);
+    }
     const workerId = findWorkerId(gameId);
 
     // Anti-spam: Skip if same game and recently fetched
@@ -168,6 +197,7 @@ export class PlayerListUI {
     this.clanGroups = clanGroups;
     this.untaggedPlayers = untaggedPlayers;
 
+    this.updateClanColorMaps();
     this.renderPlayerList();
 
     if (this.settings.showPlayerCount) {
@@ -551,6 +581,14 @@ export class PlayerListUI {
     groupEl.className = 'of-clan-group';
     groupEl.setAttribute('data-clan-tag', tag.toLowerCase());
 
+    const color = this.clanColorMap.get(tag.toLowerCase());
+    if (color) {
+      groupEl.style.setProperty('--clan-color', rgbToCss(color));
+      groupEl.style.setProperty('--clan-color-soft', rgbaToCss(color, 0.14));
+      groupEl.style.setProperty('--clan-color-strong', rgbaToCss(color, 0.28));
+      groupEl.style.setProperty('--clan-color-border', rgbaToCss(color, 0.6));
+    }
+
     if (isNew) {
       groupEl.classList.add('of-clan-group-enter');
     }
@@ -575,8 +613,12 @@ export class PlayerListUI {
       `;
     }
 
+    const activeClanTag = this.getActiveClanTag();
+    const isCurrentClan = !!activeClanTag && tag.toLowerCase() === activeClanTag;
+
     headerEl.innerHTML = `
       <span class="of-clan-tag">[${tag}]</span>
+      ${isCurrentClan ? `<span class="of-clan-you-badge">You</span>` : ''}
       <span class="of-clan-count">${players.length}</span>
       <div class="of-clan-actions">
         ${statsHtml ? `<div class="of-clan-stats">${statsHtml}</div>` : ''}
@@ -781,7 +823,7 @@ export class PlayerListUI {
       const stats = ClanLeaderboardCache.getStats(group.tag);
       const groupEl = this.createClanGroupEl(group.tag, group.players, stats, false);
 
-      // Apply blue highlight to current player's clan
+      // Apply current-player clan cue
       if (resolvedClanTag && group.tag.toLowerCase() === resolvedClanTag) {
         groupEl.classList.add('current-player-clan');
       }
@@ -858,7 +900,7 @@ export class PlayerListUI {
       const stats = ClanLeaderboardCache.getStats(group.tag);
       const groupEl = this.createClanGroupEl(group.tag, group.players, stats, true);
 
-      // Apply blue highlight to current player's clan
+      // Apply current-player clan cue
       if (resolvedClanTag && group.tag.toLowerCase() === resolvedClanTag) {
         groupEl.classList.add('current-player-clan');
       }
@@ -946,9 +988,104 @@ export class PlayerListUI {
         `[data-clan-tag="${group.tag.toLowerCase()}"]`
       ) as HTMLElement;
       if (groupEl) {
+        const color = this.clanColorMap.get(group.tag.toLowerCase());
+        if (color) {
+          groupEl.style.setProperty('--clan-color', rgbToCss(color));
+          groupEl.style.setProperty('--clan-color-soft', rgbaToCss(color, 0.14));
+          groupEl.style.setProperty('--clan-color-strong', rgbaToCss(color, 0.28));
+          groupEl.style.setProperty('--clan-color-border', rgbaToCss(color, 0.6));
+        }
         this.updateClanCount(groupEl);
       }
     }
+  }
+
+  private resetColorAllocators(): void {
+    this.teamColorAllocator.reset();
+    this.clanColorAllocator.reset();
+    this.clanColorMap.clear();
+    this.clanTeamMap.clear();
+  }
+
+  private updateClanColorMaps(): void {
+    this.clanColorMap.clear();
+    this.clanTeamMap.clear();
+
+    if (this.clanGroups.length === 0) {
+      return;
+    }
+
+    const gameConfig = this.lobbyConfig;
+    const isTeamMode = gameConfig?.gameMode === 'Team';
+
+    if (isTeamMode && gameConfig) {
+      const teams = getTeamListForLobby(gameConfig, this.currentPlayers.length, this.nationCount);
+      const teamColorMap = this.teamColorAllocator.getTeamColorMap(teams);
+      const clanTeamMap = computeClanTeamMap(this.currentPlayers, gameConfig, this.nationCount);
+
+      for (const group of this.clanGroups) {
+        const key = group.tag.toLowerCase();
+        const team = clanTeamMap.get(key);
+        const color = team ? teamColorMap.get(team) : undefined;
+        if (color) {
+          this.clanColorMap.set(key, color);
+          this.clanTeamMap.set(key, team!);
+        } else {
+          this.clanColorMap.set(key, this.clanColorAllocator.assignColor(key));
+        }
+      }
+      return;
+    }
+
+    const sorted = [...this.clanGroups]
+      .map((group) => group.tag.toLowerCase())
+      .sort((a, b) => a.localeCompare(b));
+    for (const tag of sorted) {
+      this.clanColorMap.set(tag, this.clanColorAllocator.assignColor(tag));
+    }
+  }
+
+  private async updateNationCount(gameConfig: GameConfig): Promise<void> {
+    if (gameConfig.disableNations) {
+      this.nationCount = 0;
+      return;
+    }
+
+    const mapKey = mapNameToFileKey(gameConfig.gameMap);
+    if (!mapKey) {
+      this.nationCount = 0;
+      return;
+    }
+
+    if (this.lastMapKey === mapKey) {
+      return;
+    }
+
+    this.lastMapKey = mapKey;
+
+    try {
+      const response = await fetch(`/maps/${mapKey}/manifest.json`);
+      if (!response.ok) {
+        throw new Error(`Failed to load manifest for ${mapKey}`);
+      }
+      const manifest = await response.json();
+      const manifestNations = Array.isArray(manifest.nations) ? manifest.nations.length : 0;
+      const isCompact = Boolean(gameConfig.publicGameModifiers?.isCompact) || gameConfig.gameMapSize === 'Compact';
+
+      if (manifestNations === 0) {
+        this.nationCount = 0;
+      } else if (isCompact) {
+        this.nationCount = Math.max(1, Math.floor(manifestNations * 0.25));
+      } else {
+        this.nationCount = manifestNations;
+      }
+    } catch (error) {
+      console.warn('[PlayerList] Failed to fetch map manifest:', error);
+      this.nationCount = 0;
+    }
+
+    this.updateClanColorMaps();
+    this.renderPlayerList();
   }
 
   /**

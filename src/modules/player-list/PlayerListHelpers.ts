@@ -4,6 +4,8 @@
  */
 
 import { CONFIG } from '@/config/constants';
+import { TEAM_ORDERED_COLORS } from '@/config/clanColors';
+import type { GameConfig } from '@/types/game';
 import type { ClanGroup, GroupedPlayers, PlayerDiff } from './PlayerListTypes';
 
 /**
@@ -34,6 +36,154 @@ export function stripClanTag(name: string): string {
   }
   // Remove [TAG] and at most one trailing space after the tag
   return name.replace(/^\[([a-zA-Z0-9]{2,5})\]\s?/, '');
+}
+
+export type TeamConfigValue =
+  | 'Duos'
+  | 'Trios'
+  | 'Quads'
+  | 'Humans Vs Nations'
+  | number
+  | null;
+
+interface PlayerEntry {
+  name: string;
+  clan: string | null;
+}
+
+export function getLobbyTeamConfig(gameConfig: GameConfig | null | undefined): TeamConfigValue {
+  if (!gameConfig) return null;
+  if (gameConfig.playerTeams) return gameConfig.playerTeams;
+  const teamCount = gameConfig.teamCount ?? gameConfig.teams;
+  if (typeof teamCount === 'number') return teamCount;
+  return null;
+}
+
+export function getTeamListForLobby(
+  gameConfig: GameConfig | null | undefined,
+  playerCount: number,
+  nationCount: number
+): string[] {
+  if (!gameConfig || gameConfig.gameMode !== 'Team') {
+    return [];
+  }
+
+  const config = getLobbyTeamConfig(gameConfig);
+  if (config === 'Humans Vs Nations') {
+    return ['Humans', 'Nations'];
+  }
+
+  let numTeams = 2;
+  if (typeof config === 'number') {
+    numTeams = Math.max(2, config);
+  } else {
+    const divisor = config === 'Duos' ? 2 : config === 'Trios' ? 3 : config === 'Quads' ? 4 : 2;
+    numTeams = Math.max(2, Math.ceil((playerCount + nationCount) / divisor));
+  }
+
+  if (numTeams < 8) {
+    return TEAM_ORDERED_COLORS.slice(0, numTeams);
+  }
+
+  return Array.from({ length: numTeams }, (_, i) => `Team ${i + 1}`);
+}
+
+export function getMaxTeamSize(numPlayers: number, numTeams: number): number {
+  return Math.ceil(numPlayers / numTeams);
+}
+
+export function computeClanTeamMap(
+  names: string[],
+  gameConfig: GameConfig | null | undefined,
+  nationCount: number
+): Map<string, string> {
+  if (!gameConfig || gameConfig.gameMode !== 'Team') {
+    return new Map();
+  }
+
+  const config = getLobbyTeamConfig(gameConfig);
+  if (config === 'Humans Vs Nations') {
+    const clanTeams = new Map<string, string>();
+    for (const name of names) {
+      const tag = getPlayerClanTag(name);
+      if (tag) {
+        clanTeams.set(tag.toLowerCase(), 'Humans');
+      }
+    }
+    return clanTeams;
+  }
+
+  const teams = getTeamListForLobby(gameConfig, names.length, nationCount);
+  if (teams.length === 0) {
+    return new Map();
+  }
+
+  const maxTeamSize = getMaxTeamSize(names.length + nationCount, teams.length);
+  const clanGroups = new Map<string, PlayerEntry[]>();
+  const noClanPlayers: PlayerEntry[] = [];
+
+  for (const name of names) {
+    const tag = getPlayerClanTag(name);
+    const entry: PlayerEntry = { name, clan: tag };
+    if (tag) {
+      if (!clanGroups.has(tag)) {
+        clanGroups.set(tag, []);
+      }
+      clanGroups.get(tag)!.push(entry);
+    } else {
+      noClanPlayers.push(entry);
+    }
+  }
+
+  const sortedClans = Array.from(clanGroups.entries()).sort(
+    (a, b) => b[1].length - a[1].length
+  );
+
+  const teamPlayerCount = new Map<string, number>();
+  const clanTeamMap = new Map<string, string>();
+
+  for (const [clanTag, clanPlayers] of sortedClans) {
+    let team: string | null = null;
+    let teamSize = 0;
+    for (const t of teams) {
+      const p = teamPlayerCount.get(t) ?? 0;
+      if (team !== null && teamSize <= p) continue;
+      teamSize = p;
+      team = t;
+    }
+
+    if (!team) continue;
+    clanTeamMap.set(clanTag.toLowerCase(), team);
+
+    for (const _player of clanPlayers) {
+      if (teamSize < maxTeamSize) {
+        teamSize++;
+      }
+    }
+
+    teamPlayerCount.set(team, teamSize);
+  }
+
+  for (const _player of noClanPlayers) {
+    let team: string | null = null;
+    let teamSize = 0;
+    for (const t of teams) {
+      const p = teamPlayerCount.get(t) ?? 0;
+      if (team !== null && teamSize <= p) continue;
+      teamSize = p;
+      team = t;
+    }
+    if (!team) continue;
+    teamPlayerCount.set(team, teamSize + 1);
+  }
+
+  return clanTeamMap;
+}
+
+export function mapNameToFileKey(mapName: string | null | undefined): string | null {
+  if (!mapName) return null;
+  const key = mapName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  return key.length > 0 ? key : null;
 }
 
 /**

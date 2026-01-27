@@ -3,7 +3,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { stripClanTag } from '@/modules/player-list/PlayerListHelpers';
+import {
+  stripClanTag,
+  getTeamListForLobby,
+  computeClanTeamMap,
+  mapNameToFileKey,
+} from '@/modules/player-list/PlayerListHelpers';
 
 describe('stripClanTag', () => {
   it('should strip standard clan tag format with space', () => {
@@ -73,5 +78,43 @@ describe('stripClanTag', () => {
     const result2 = stripClanTag('[ABC]   PlayerName');
     expect(result1).toBe(' PlayerName'); // Only strips one space
     expect(result2).toBe('  PlayerName');
+  });
+});
+
+describe('getTeamListForLobby', () => {
+  it('should return ordered team colors for small team counts', () => {
+    const config = { gameMode: 'Team', teamCount: 3 } as any;
+    const teams = getTeamListForLobby(config, 6, 0);
+    expect(teams).toEqual(['Red', 'Blue', 'Yellow']);
+  });
+
+  it('should handle Humans Vs Nations config', () => {
+    const config = { gameMode: 'Team', playerTeams: 'Humans Vs Nations' } as any;
+    const teams = getTeamListForLobby(config, 5, 0);
+    expect(teams).toEqual(['Humans', 'Nations']);
+  });
+
+  it('should compute team count from Duos', () => {
+    const config = { gameMode: 'Team', playerTeams: 'Duos' } as any;
+    const teams = getTeamListForLobby(config, 5, 0);
+    expect(teams).toEqual(['Red', 'Blue', 'Yellow']);
+  });
+});
+
+describe('computeClanTeamMap', () => {
+  it('should keep larger clans together and balance teams', () => {
+    const config = { gameMode: 'Team', teamCount: 2 } as any;
+    const names = ['[AAA] One', '[AAA] Two', '[AAA] Three', '[BB] Solo', '[CC] Solo'];
+    const map = computeClanTeamMap(names, config, 0);
+    expect(map.get('aaa')).toBe('Red');
+    expect(map.get('bb')).toBe('Blue');
+    expect(map.get('cc')).toBe('Blue');
+  });
+});
+
+describe('mapNameToFileKey', () => {
+  it('should normalize map names to file keys', () => {
+    expect(mapNameToFileKey('Gulf of St. Lawrence')).toBe('gulfofstlawrence');
+    expect(mapNameToFileKey('Giant World Map')).toBe('giantworldmap');
   });
 });

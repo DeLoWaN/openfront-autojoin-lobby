@@ -336,6 +336,10 @@ export function getStyles(): string {
       background: rgba(14, 20, 32, 0.78);
       overflow: hidden;
       box-shadow: 0 10px 18px rgba(2, 6, 16, 0.35);
+      --clan-color: ${COLORS.accent};
+      --clan-color-soft: rgba(46, 211, 241, 0.14);
+      --clan-color-strong: rgba(46, 211, 241, 0.28);
+      --clan-color-border: rgba(46, 211, 241, 0.6);
     }
     .of-clan-group-enter {
       animation: clanGroupEnter ${TIMING.slow} cubic-bezier(.27,.82,.48,1.06) forwards;
@@ -353,7 +357,8 @@ export function getStyles(): string {
     }
     .of-clan-group-header {
       padding: calc(${SPACING.sm} - 2px) ${SPACING.md};
-      background: rgba(22, 32, 48, 0.9);
+      background: linear-gradient(90deg, var(--clan-color-soft), rgba(22, 32, 48, 0.9) 65%);
+      border-left: 3px solid var(--clan-color-border);
       cursor: default;
       display: flex;
       align-items: center;
@@ -363,21 +368,10 @@ export function getStyles(): string {
       font-family: ${FONTS.display};
     }
     .of-clan-group-header:hover {
-      background: rgba(28, 40, 60, 0.95);
+      background: linear-gradient(90deg, var(--clan-color-strong), rgba(28, 40, 60, 0.95) 65%);
     }
     .of-clan-group.current-player-clan .of-clan-group-header {
-      background: rgba(46, 211, 241, 0.18) !important;
-      border-left: 3px solid ${COLORS.accent} !important;
-      padding-left: calc(${SPACING.sm} - 3px);
-    }
-    .of-clan-group.current-player-clan .of-clan-group-players .of-player-item {
-      background: rgba(46, 211, 241, 0.15) !important;
-      border-color: ${COLORS.accent} !important;
-      box-shadow: 0 0 8px rgba(46, 211, 241, 0.2);
-    }
-    .of-clan-group.current-player-clan .of-clan-group-players .of-player-item:hover {
-      background: rgba(46, 211, 241, 0.25) !important;
-      transform: translateY(-1px);
+      box-shadow: inset 0 0 0 1px var(--clan-color-border);
     }
     .of-clan-arrow {
       font-size: 0.8em;
@@ -397,13 +391,24 @@ export function getStyles(): string {
       letter-spacing: 0.12em;
       font-family: ${FONTS.display};
     }
+    .of-clan-you-badge {
+      font-size: 0.7em;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      padding: 2px 6px;
+      border-radius: ${RADIUS.xl};
+      border: 1px solid var(--clan-color-border);
+      background: var(--clan-color-soft);
+      color: ${COLORS.textPrimary};
+      font-family: ${FONTS.mono};
+    }
     .of-clan-count {
       font-size: 0.75em;
       color: ${COLORS.textPrimary};
-      background: rgba(46, 211, 241, 0.18);
+      background: var(--clan-color-soft);
       padding: 2px 7px;
       border-radius: ${RADIUS.xl};
-      border: 1px solid ${COLORS.borderAccent};
+      border: 1px solid var(--clan-color-border);
       letter-spacing: 0.1em;
       font-family: ${FONTS.mono};
     }
@@ -464,15 +469,15 @@ export function getStyles(): string {
     .of-clan-group-players .of-player-item {
       display: inline-flex;
       padding: 4px 10px;
-      border: 1px solid rgba(90, 110, 150, 0.4);
+      border: 1px solid var(--clan-color-border);
       border-radius: ${RADIUS.sm};
-      background: rgba(22, 34, 52, 0.9);
+      background: var(--clan-color-soft);
       cursor: default;
       transition: background ${TIMING.fast}, border-color ${TIMING.fast}, transform ${TIMING.fast};
     }
     .of-clan-group-players .of-player-item:hover {
-      background: rgba(30, 44, 66, 0.95);
-      border-color: ${COLORS.borderAccent};
+      background: var(--clan-color-strong);
+      border-color: var(--clan-color);
       transform: translateY(-1px);
     }
     .of-player-list-content { flex: 1; padding: ${SPACING.xs} 0; }

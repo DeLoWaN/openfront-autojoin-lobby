@@ -10,6 +10,12 @@ export interface GameConfig {
   playerTeams?: 'Duos' | 'Trios' | 'Quads' | 'Humans Vs Nations' | number;
   teams?: number;
   teamCount?: number;
+  gameMap?: string;
+  gameMapSize?: 'Compact' | 'Normal' | string;
+  publicGameModifiers?: {
+    isCompact: boolean;
+  };
+  disableNations?: boolean;
   maxClients?: number;
   maxPlayers?: number;
   maxPlayersPerGame?: number;
