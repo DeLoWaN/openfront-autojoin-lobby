@@ -94,6 +94,7 @@ export function getTeamListForLobby(
     return ['Humans', 'Nations'];
   }
 
+  const useNumberedTeams = config === 'Duos' || config === 'Trios' || config === 'Quads';
   let numTeams = 2;
   if (typeof config === 'number') {
     numTeams = Math.max(2, config);
@@ -104,6 +105,10 @@ export function getTeamListForLobby(
     const totalPlayers =
       maxPlayers !== null ? Math.max(playerCount, maxPlayers) : playerCount;
     numTeams = Math.max(2, Math.ceil((totalPlayers + nationCount) / divisor));
+  }
+
+  if (useNumberedTeams) {
+    return Array.from({ length: numTeams }, (_, i) => `Team ${i + 1}`);
   }
 
   if (numTeams < 8) {

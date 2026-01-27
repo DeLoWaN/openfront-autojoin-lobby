@@ -581,7 +581,11 @@ export function getStyles(): string {
       background: var(--player-accent-soft, rgba(120, 135, 170, 0.18));
     }
     .of-clan-group-players .of-player-item.of-player-item-clanmate {
-      box-shadow: 0 0 10px var(--clan-color-border);
+      border-left: 4px solid var(--clan-color, ${COLORS.accent});
+      background: var(--clan-color);
+      box-shadow: 0 0 0 1px var(--clan-color-border) inset, 0 0 12px rgba(46, 211, 241, 0.3);
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(6, 10, 18, 0.8);
     }
     .of-player-name { color: ${COLORS.textPrimary}; white-space: nowrap; overflow: visible; font-weight: 400; flex: 1; }
     .of-player-highlighted { background: linear-gradient(90deg, ${COLORS.highlight} 40%, rgba(46, 211, 241, 0.05)); border-left: 3px solid ${COLORS.accent}; }

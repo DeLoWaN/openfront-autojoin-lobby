@@ -99,7 +99,7 @@ describe('getTeamListForLobby', () => {
   it('should compute team count from Duos', () => {
     const config = { gameMode: 'Team', playerTeams: 'Duos' } as any;
     const teams = getTeamListForLobby(config, 5, 0);
-    expect(teams).toEqual(['Red', 'Blue', 'Yellow']);
+    expect(teams).toEqual(['Team 1', 'Team 2', 'Team 3']);
   });
 });
 
