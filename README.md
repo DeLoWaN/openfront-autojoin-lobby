@@ -1,10 +1,10 @@
-# OpenFront.io Bundle: Player List + Auto-Join
+# OpenFront.io Lobby Intel + Discovery
 
-A modular, TypeScript-based userscript that enhances the OpenFront.io gaming experience with real-time lobby information and automated game joining.
+A modular, TypeScript-based userscript that enhances the OpenFront.io gaming experience with real-time lobby information and notify-only lobby discovery.
 
 ## For Players
 
-This userscript combines a live lobby player list with an intelligent auto-join system for OpenFront.io.
+This userscript combines a live lobby player list with an intelligent lobby-discovery system for OpenFront.io.
 
 <img width="497" height="1357" alt="image" src="https://github.com/user-attachments/assets/ffe41caf-0a31-43df-9e47-d8ec977eb26f" />
 
@@ -14,15 +14,14 @@ This userscript combines a live lobby player list with an intelligent auto-join 
 ### Features
 - Live player list: shows everyone in your lobby, grouped by clan tag, with counts and highlights for you and your clanmates
 - Clan stats: displays win/loss performance for known clans when leaderboard data is available
-- Quick tag switch: swap to your recent clan tags in one click, with optional auto-rejoin
-- Auto-join or notify mode: scans public lobbies and either joins for you or just alerts you when a match appears
-- Smart filters: pick FFA vs Team, min/max players, and team formats (duos/trios/quads or custom team counts)
-- Clanmate watcher: one-shot button that joins when a player with a chosen clan tag appears
-- Alerts and layout: full-screen notifications, optional sound cues, draggable panels, and saved positions
+- Quick tag switch: swap to your recent clan tags in one click
+- Notify-only lobby discovery: scans public lobbies and alerts you when a matching Team lobby appears
+- Team filters: configure team formats (duos/trios/quads or custom team counts) and player-per-team ranges
+- Alerts and layout: full-screen notifications, optional sound cues, and saved settings
 
-### Recent updates (v2.6.0)
-- 🌈 Clan colors now match team colors in Team mode
-- 🪄 Auto-Join modes panel is more compact with quick reveal controls
+### Recent updates (v2.7.1)
+- 🔒 Removed all automated join/rejoin behaviors for TOS-safe manual joining
+- 🔎 Renamed Auto-Join module/UI to Lobby Discovery with notify-only Team filtering
 
 ### Install
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Greasemonkey](https://www.greasespot.net/)
@@ -32,7 +31,7 @@ This userscript combines a live lobby player list with an intelligent auto-join 
 
 ### Use
 - Join any lobby and the player list appears automatically
-- Configure auto-join criteria in the Auto-Join panel
+- Configure lobby discovery criteria in the Lobby Discovery panel
 - Switch clan tags from the quick switch section
 - Updates install automatically via Tampermonkey
 
@@ -58,7 +57,7 @@ userscript/
 │   ├── styles/                  # CSS-in-JS styles
 │   └── modules/                 # Feature modules
 │       ├── player-list/         # Player list functionality
-│       └── auto-join/           # Auto-join functionality
+│       └── lobby-discovery/           # Lobby discovery functionality
 ├── tests/                       # Unit tests (mirrors src/)
 ├── dist/                        # Build output
 │   └── bundle.user.js           # Final userscript
@@ -189,7 +188,7 @@ The codebase follows a layered architecture:
 ┌─────────────────────────────────────┐
 │           main.ts                   │  ← Entry point
 ├─────────────────────────────────────┤
-│     Feature Modules                 │  ← PlayerList, AutoJoin
+│     Feature Modules                 │  ← PlayerList, LobbyDiscovery
 ├─────────────────────────────────────┤
 │     Styles                          │  ← CSS-in-JS
 ├─────────────────────────────────────┤
@@ -216,7 +215,7 @@ The codebase follows a layered architecture:
 | `data/` | Data fetching and caching (lobbies, clan stats) |
 | `styles/` | CSS-in-JS style generation |
 | `modules/player-list/` | Player list UI and clan grouping |
-| `modules/auto-join/` | Auto-join UI and matching logic |
+| `modules/lobby-discovery/` | Notify-only lobby discovery UI and matching logic |
 | `main.ts` | Bootstrap and wire up all modules |
 
 ### Configuration
@@ -237,6 +236,8 @@ import { PlayerListUI } from '@/modules/player-list/PlayerListUI';
 
 ### Version History
 
+- **v2.7.1** - Removed automation, renamed to Lobby Discovery, and kept notify-only Team filtering
+- **v2.6.0** - Added clan-based team colors and tactical HUD improvements
 - **v2.3.0** - Refactored to modular TypeScript architecture
 - **v2.2.0** - Original monolithic bundle.js
 

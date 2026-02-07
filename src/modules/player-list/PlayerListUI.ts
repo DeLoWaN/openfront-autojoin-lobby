@@ -59,9 +59,6 @@ export class PlayerListUI {
   private currentPlayerUsername: string = '';
   private selectedClanTag: string | null = null;
   private lastRenderedSelectedClanTag?: string | null;
-  private playerListUpdateSubscribers: Array<
-    (payload: { activeClanTag: string | null; hasClanmateMatch: boolean }) => void
-  > = [];
   private lobbyConfig: GameConfig | null = null;
   private nationCount: number = 0;
   private lastMapKey: string | null = null;
@@ -160,15 +157,6 @@ export class PlayerListUI {
   }
 
   /**
-   * Subscribe to player list updates for clanmate matching
-   */
-  onPlayerListUpdate(
-    callback: (payload: { activeClanTag: string | null; hasClanmateMatch: boolean }) => void
-  ): void {
-    this.playerListUpdateSubscribers.push(callback);
-  }
-
-  /**
    * Update the player list with new names
    * Only re-renders if players have changed
    */
@@ -214,36 +202,6 @@ export class PlayerListUI {
 
     this.previousPlayers = nextPlayers;
     this.lastRenderedShowOnlyClans = this.showOnlyClans;
-    this.notifyPlayerListUpdate();
-  }
-
-  private notifyPlayerListUpdate(): void {
-    if (this.playerListUpdateSubscribers.length === 0) {
-      return;
-    }
-    const activeClanTag = this.getActiveClanTag();
-    const hasClanmateMatch = this.hasClanmateMatch(activeClanTag);
-    const payload = { activeClanTag, hasClanmateMatch };
-    this.playerListUpdateSubscribers.forEach((cb) => cb(payload));
-  }
-
-  private hasClanmateMatch(activeClanTag: string | null): boolean {
-    if (!activeClanTag) {
-      return false;
-    }
-    const normalizedTag = activeClanTag.toLowerCase();
-    const currentName = this.currentPlayerUsername.trim();
-
-    for (const group of this.clanGroups) {
-      if (group.tag.toLowerCase() === normalizedTag) {
-        if (!currentName) {
-          return group.players.length > 0;
-        }
-        return group.players.some((player) => player.trim() !== currentName);
-      }
-    }
-
-    return false;
   }
 
   private isTeamMode(): boolean {
@@ -285,10 +243,10 @@ export class PlayerListUI {
       document.body.appendChild(this.container);
     }
 
-    const autoJoinSlot = document.createElement('div');
-    autoJoinSlot.id = 'of-autojoin-slot';
-    autoJoinSlot.className = 'of-autojoin-slot';
-    this.container.appendChild(autoJoinSlot);
+    const discoverySlot = document.createElement('div');
+    discoverySlot.id = 'of-discovery-slot';
+    discoverySlot.className = 'of-discovery-slot';
+    this.container.appendChild(discoverySlot);
 
     this.header = document.createElement('div');
     this.header.className = 'of-header of-player-list-header';
@@ -496,19 +454,6 @@ export class PlayerListUI {
     GM_setValue(STORAGE_KEYS.playerListShowOnlyClans, this.showOnlyClans);
   }
 
-  private getAutoRejoinOnClanChange(): boolean {
-    const saved = GM_getValue<{ autoRejoinOnClanChange?: boolean } | null>(
-      STORAGE_KEYS.autoJoinSettings,
-      null
-    );
-    if (saved && typeof saved.autoRejoinOnClanChange === 'boolean') {
-      return saved.autoRejoinOnClanChange;
-    }
-
-    const legacy = GM_getValue<boolean | undefined>(STORAGE_KEYS.playerListAutoRejoin);
-    return legacy ?? false;
-  }
-
   /**
    * Apply clan tag to the username input field
    * v0.29.0: Use the separate clan tag input (maxlength="5")
@@ -533,11 +478,6 @@ export class PlayerListUI {
         setter.call(clanInput, upperTag);
         clanInput.dispatchEvent(new Event('input', { bubbles: true }));
         clanInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-        // Auto-rejoin if enabled
-        if (this.getAutoRejoinOnClanChange()) {
-          this.performLobbyRejoin();
-        }
       }
     }
   }
@@ -750,7 +690,6 @@ export class PlayerListUI {
     }
     this.selectedClanTag = normalized;
     this.renderPlayerList();
-    this.notifyPlayerListUpdate();
     return true;
   }
 
@@ -793,45 +732,6 @@ export class PlayerListUI {
     }
 
     return groups;
-  }
-
-  /**
-   * Perform lobby rejoin to update username on server
-   * Leaves lobby if currently in it, then rejoins
-   */
-  private async performLobbyRejoin(): Promise<void> {
-    const publicLobby = document.querySelector('public-lobby') as any;
-    const btn = LobbyUtils.getLobbyButton();
-
-    if (!btn || !publicLobby) {
-      console.warn('[PlayerList] Cannot rejoin - lobby elements not found');
-      return;
-    }
-
-    const isInLobby = publicLobby.isLobbyHighlighted === true;
-
-    if (isInLobby) {
-      // Leave lobby first
-      btn.click();
-
-      // Wait for leave to complete (longer than debounce delay)
-      await new Promise((resolve) => setTimeout(resolve, 900));
-
-      // Verify we left
-      if (!LobbyUtils.verifyState('out')) {
-        console.warn('[PlayerList] Failed to leave lobby');
-        return;
-      }
-    }
-
-    // Wait for username to propagate
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // Join lobby
-    const joined = LobbyUtils.tryJoinLobby();
-    if (!joined) {
-      console.warn('[PlayerList] Failed to join lobby');
-    }
   }
 
   /**

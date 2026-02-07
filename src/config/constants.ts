@@ -12,14 +12,12 @@ export const CONFIG = {
  * Using centralized keys prevents typos and makes refactoring easier
  */
 export const STORAGE_KEYS = {
-  autoJoinSettings: "OF_AUTOJOIN_SETTINGS",
-  autoJoinPanelPosition: "OF_AUTOJOIN_PANEL_POSITION",
+  lobbyDiscoverySettings: "OF_LOBBY_DISCOVERY_SETTINGS",
   playerListPanelPosition: "OF_PLAYER_LIST_PANEL_POSITION",
   playerListPanelSize: "OF_PLAYER_LIST_PANEL_SIZE",
   playerListShowOnlyClans: "OF_PLAYER_LIST_SHOW_ONLY_CLANS",
   playerListCollapseStates: "OF_PLAYER_LIST_COLLAPSE_STATES",
   playerListRecentTags: "OF_PLAYER_LIST_RECENT_TAGS",
-  playerListAutoRejoin: "OF_PLAYER_LIST_AUTO_REJOIN",
 } as const;
 
 /**

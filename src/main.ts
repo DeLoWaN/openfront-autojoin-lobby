@@ -1,5 +1,5 @@
 /**
- * OpenFront.io Bundle: Player List + Auto-Join
+ * OpenFront.io Lobby Intel + Discovery
  *
  * Main entry point for the userscript.
  * This file bootstraps all modules and wires up the application.
@@ -11,7 +11,7 @@ import { URLObserver } from '@/utils/URLObserver';
 import { LobbyDataManager } from '@/data/LobbyDataManager';
 import { ClanLeaderboardCache } from '@/data/ClanLeaderboardCache';
 import { PlayerListUI } from '@/modules/player-list/PlayerListUI';
-import { AutoJoinUI } from '@/modules/auto-join/AutoJoinUI';
+import { LobbyDiscoveryUI } from '@/modules/lobby-discovery/LobbyDiscoveryUI';
 import { STORAGE_KEYS } from '@/config/constants';
 import type { PanelSize } from '@/types/game';
 
@@ -91,18 +91,14 @@ function injectLayoutWrapper(): void {
   const playerList = new PlayerListUI();
   console.log('[OpenFront Bundle] Player list initialized ✅');
 
-  // Initialize AutoJoin module
-  const autoJoin = new AutoJoinUI();
-  console.log('[OpenFront Bundle] Auto-join initialized ✅');
-
-  playerList.onPlayerListUpdate((payload) => {
-    autoJoin.handleClanmateUpdate(payload);
-  });
+  // Initialize lobby discovery module
+  const lobbyDiscovery = new LobbyDiscoveryUI();
+  console.log('[OpenFront Bundle] Lobby discovery initialized ✅');
 
   // Wire up LobbyDataManager to both modules
   LobbyDataManager.subscribe((lobbies) => {
     playerList.receiveLobbyUpdate(lobbies);
-    autoJoin.receiveLobbyUpdate(lobbies);
+    lobbyDiscovery.receiveLobbyUpdate(lobbies);
   });
   console.log('[OpenFront Bundle] Modules subscribed to lobby updates ✅');
 
