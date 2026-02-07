@@ -94,17 +94,17 @@ export function getStyles(): string {
       background: linear-gradient(90deg, transparent, rgba(46, 211, 241, 0.7), transparent);
       pointer-events: none;
     }
-    .autojoin-header {
+    .discovery-header {
       cursor: pointer;
       gap: ${SPACING.sm};
       padding: ${SPACING.sm} ${SPACING.md};
       font-size: 0.85em;
       position: relative;
     }
-    .autojoin-header:hover {
+    .discovery-header:hover {
       background: ${COLORS.bgHover};
     }
-    .autojoin-header::after {
+    .discovery-header::after {
       content: "";
       position: absolute;
       left: 0;
@@ -114,16 +114,16 @@ export function getStyles(): string {
       background: linear-gradient(90deg, transparent, rgba(46, 211, 241, 0.7), transparent);
       pointer-events: none;
     }
-    .autojoin-title {
+    .discovery-title {
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
-    .autojoin-title-text {
+    .discovery-title-text {
       color: ${COLORS.textPrimary};
       font-weight: 700;
     }
-    .autojoin-title-sub {
+    .discovery-title-sub {
       font-size: 0.72em;
       color: ${COLORS.textMuted};
       letter-spacing: 0.2em;
@@ -211,7 +211,7 @@ export function getStyles(): string {
       overflow: hidden;
       resize: none;
     }
-    .of-autojoin-slot {
+    .of-discovery-slot {
       width: 100%;
       flex-shrink: 0;
     }
@@ -603,7 +603,7 @@ export function getStyles(): string {
     .of-player-list-button { background: ${COLORS.bgHover}; border: 1px solid ${COLORS.border}; color: ${COLORS.textPrimary}; padding: 6px 13px; border-radius: ${RADIUS.md}; cursor: pointer; font-size: 0.9em; font-weight: 600; transition: background ${TIMING.fast}, border-color ${TIMING.fast}; outline: none; }
     .of-player-list-button:hover { background: rgba(80,110,160,0.5); border-color: ${COLORS.borderAccent}; }
 
-    .autojoin-panel {
+    .discovery-panel {
       position: relative;
       width: 100%;
       max-width: none;
@@ -616,11 +616,11 @@ export function getStyles(): string {
       transition: opacity ${TIMING.slow}, transform ${TIMING.slow};
       cursor: default;
     }
-    .autojoin-panel::after { display: none; }
-    .autojoin-panel.hidden { display: none; }
-    .autojoin-body { display: flex; flex-direction: column; }
-    .autojoin-content { display: flex; flex-direction: column; gap: ${SPACING.sm}; padding: ${SPACING.sm} ${SPACING.md} ${SPACING.md}; }
-    .autojoin-status-bar {
+    .discovery-panel::after { display: none; }
+    .discovery-panel.hidden { display: none; }
+    .discovery-body { display: flex; flex-direction: column; }
+    .discovery-content { display: flex; flex-direction: column; gap: ${SPACING.sm}; padding: ${SPACING.sm} ${SPACING.md} ${SPACING.md}; }
+    .discovery-status-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -631,17 +631,17 @@ export function getStyles(): string {
       border: 1px solid ${COLORS.border};
       border-radius: ${RADIUS.md};
     }
-    .autojoin-action-row {
+    .discovery-action-row {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: ${SPACING.sm};
     }
-    .autojoin-modes {
+    .discovery-modes {
       display: flex;
       flex-direction: column;
       gap: ${SPACING.xs};
     }
-    .autojoin-modes-rail {
+    .discovery-modes-rail {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -652,16 +652,16 @@ export function getStyles(): string {
       cursor: pointer;
       transition: background ${TIMING.fast}, border-color ${TIMING.fast};
     }
-    .autojoin-modes-rail:hover {
+    .discovery-modes-rail:hover {
       border-color: ${COLORS.borderAccent};
       background: rgba(20, 30, 46, 0.75);
     }
-    .autojoin-modes-caret {
+    .discovery-modes-caret {
       color: ${COLORS.textMuted};
       font-size: 0.9em;
       transition: transform ${TIMING.fast}, color ${TIMING.fast};
     }
-    .autojoin-modes-label {
+    .discovery-modes-label {
       font-size: 0.7em;
       color: ${COLORS.textMuted};
       letter-spacing: 0.18em;
@@ -669,30 +669,30 @@ export function getStyles(): string {
       font-family: ${FONTS.display};
       margin-right: 2px;
     }
-    .autojoin-modes-dot {
+    .discovery-modes-dot {
       width: 6px;
       height: 6px;
       border-radius: 999px;
       background: ${COLORS.textMuted};
       opacity: 0.7;
     }
-    .autojoin-modes-body {
+    .discovery-modes-body {
       max-height: 0;
       opacity: 0;
       overflow: hidden;
       margin-top: 0;
       transition: max-height ${TIMING.slow}, opacity ${TIMING.fast}, margin-top ${TIMING.fast};
     }
-    .autojoin-modes.is-expanded .autojoin-modes-body {
+    .discovery-modes.is-expanded .discovery-modes-body {
       max-height: 2000px;
       opacity: 1;
       margin-top: ${SPACING.xs};
     }
-    .autojoin-modes.is-expanded .autojoin-modes-caret {
+    .discovery-modes.is-expanded .discovery-modes-caret {
       transform: rotate(90deg);
       color: ${COLORS.textPrimary};
     }
-    .autojoin-clanmate-button {
+    .discovery-clanmate-button {
       width: 100%;
       background: rgba(22, 34, 52, 0.9);
       border: 1px solid ${COLORS.border};
@@ -708,23 +708,23 @@ export function getStyles(): string {
       letter-spacing: 0.08em;
       font-family: ${FONTS.display};
     }
-    .autojoin-clanmate-button:hover { background: rgba(30, 44, 66, 0.95); border-color: ${COLORS.borderAccent}; }
-    .autojoin-clanmate-button.armed { background: ${COLORS.accent}; border-color: ${COLORS.accentHover}; color: #04131a; box-shadow: 0 0 12px rgba(46, 211, 241, 0.35); }
-    .autojoin-clanmate-button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .autojoin-config-grid { display: flex; flex-direction: column; gap: ${SPACING.sm}; }
-    .autojoin-config-card { flex: 1 1 auto; min-width: 0; width: 100%; background: rgba(14, 22, 34, 0.7); border: 1px solid ${COLORS.border}; border-radius: ${RADIUS.md}; }
-    .autojoin-mode-inner {
+    .discovery-clanmate-button:hover { background: rgba(30, 44, 66, 0.95); border-color: ${COLORS.borderAccent}; }
+    .discovery-clanmate-button.armed { background: ${COLORS.accent}; border-color: ${COLORS.accentHover}; color: #04131a; box-shadow: 0 0 12px rgba(46, 211, 241, 0.35); }
+    .discovery-clanmate-button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .discovery-config-grid { display: flex; flex-direction: column; gap: ${SPACING.sm}; }
+    .discovery-config-card { flex: 1 1 auto; min-width: 0; width: 100%; background: rgba(14, 22, 34, 0.7); border: 1px solid ${COLORS.border}; border-radius: ${RADIUS.md}; }
+    .discovery-mode-inner {
       display: flex;
       flex-direction: column;
       gap: ${SPACING.xs};
       margin-top: ${SPACING.xs};
     }
-    .autojoin-section {
+    .discovery-section {
       display: flex;
       flex-direction: column;
       gap: ${SPACING.xs};
     }
-    .autojoin-section-title {
+    .discovery-section-title {
       font-size: 0.72em;
       color: ${COLORS.textMuted};
       text-transform: uppercase;
@@ -732,8 +732,8 @@ export function getStyles(): string {
       font-family: ${FONTS.display};
       margin-top: ${SPACING.xs};
     }
-    .autojoin-footer { align-items: center; justify-content: flex-start; gap: ${SPACING.sm}; flex-wrap: wrap; padding: ${SPACING.sm} ${SPACING.md}; background: rgba(14, 22, 34, 0.75); border-top: 1px solid ${COLORS.border}; }
-    .autojoin-main-button {
+    .discovery-footer { align-items: center; justify-content: flex-start; gap: ${SPACING.sm}; flex-wrap: wrap; padding: ${SPACING.sm} ${SPACING.md}; background: rgba(14, 22, 34, 0.75); border-top: 1px solid ${COLORS.border}; }
+    .discovery-main-button {
       width: auto;
       flex: 1 1 160px;
       padding: ${SPACING.sm} ${SPACING.md};
@@ -748,9 +748,9 @@ export function getStyles(): string {
       letter-spacing: 0.08em;
       font-family: ${FONTS.display};
     }
-    .autojoin-main-button.active { background: ${COLORS.accent}; color: #04131a; border-color: ${COLORS.accentHover}; box-shadow: 0 0 14px rgba(46, 211, 241, 0.35); }
-    .autojoin-main-button.inactive { background: rgba(28, 38, 58, 0.9); color: ${COLORS.textSecondary}; }
-    .autojoin-mode-config { margin-bottom: ${SPACING.xs}; padding: ${SPACING.sm}; background: rgba(18, 26, 40, 0.8); border-radius: ${RADIUS.md}; border: 1px solid rgba(90, 110, 150, 0.35); }
+    .discovery-main-button.active { background: ${COLORS.accent}; color: #04131a; border-color: ${COLORS.accentHover}; box-shadow: 0 0 14px rgba(46, 211, 241, 0.35); }
+    .discovery-main-button.inactive { background: rgba(28, 38, 58, 0.9); color: ${COLORS.textSecondary}; }
+    .discovery-mode-config { margin-bottom: ${SPACING.xs}; padding: ${SPACING.sm}; background: rgba(18, 26, 40, 0.8); border-radius: ${RADIUS.md}; border: 1px solid rgba(90, 110, 150, 0.35); }
     .mode-checkbox-label {
       display: flex;
       align-items: center;
@@ -790,7 +790,7 @@ export function getStyles(): string {
     .capacity-label-group label { font-size: 0.8em; color: ${COLORS.textSecondary}; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-family: ${FONTS.display}; }
     .capacity-value { font-size: 0.85em; color: #FFFFFF; font-weight: 600; min-width: 40px; text-align: center; }
     .capacity-inputs-hidden { display: none; }
-    .autojoin-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; flex-wrap: wrap; }
+    .discovery-status { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; flex-wrap: wrap; }
     @keyframes statusPulse {
       0% { box-shadow: 0 0 0 0 rgba(20, 220, 170, 0.4); }
       70% { box-shadow: 0 0 0 8px rgba(20, 220, 170, 0); }
@@ -801,9 +801,9 @@ export function getStyles(): string {
     .status-indicator.inactive { animation: none; box-shadow: none; }
     .status-text { font-size: 0.8em; color: ${COLORS.textPrimary}; text-transform: uppercase; letter-spacing: 0.12em; font-family: ${FONTS.display}; }
     .search-timer { font-size: 0.8em; color: rgba(147, 197, 253, 0.9); font-weight: 500; font-family: ${FONTS.mono}; }
-    .autojoin-settings { display: flex; align-items: center; gap: ${SPACING.sm}; flex-wrap: wrap; }
-    .autojoin-toggle-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8em; color: ${COLORS.textPrimary}; font-family: ${FONTS.display}; text-transform: uppercase; letter-spacing: 0.08em; }
-    .autojoin-toggle-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+    .discovery-settings { display: flex; align-items: center; gap: ${SPACING.sm}; flex-wrap: wrap; }
+    .discovery-toggle-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8em; color: ${COLORS.textPrimary}; font-family: ${FONTS.display}; text-transform: uppercase; letter-spacing: 0.08em; }
+    .discovery-toggle-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
     .current-game-info { margin: 6px 0; padding: 6px ${SPACING.sm}; background: rgba(46, 211, 241, 0.1); border-radius: ${RADIUS.sm}; font-size: 0.8em; color: rgba(147, 197, 253, 0.9); text-align: center; border: 1px solid rgba(46, 211, 241, 0.25); }
     .current-game-info.not-applicable { background: rgba(100, 100, 100, 0.1); color: ${COLORS.textMuted}; border-color: rgba(100, 100, 100, 0.2); font-style: italic; }
     .game-found-notification {

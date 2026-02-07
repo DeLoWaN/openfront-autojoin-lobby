@@ -12,7 +12,7 @@ const version = packageJson.version;
 
 // Userscript metadata header
 const userscriptHeader = `// ==UserScript==
-// @name         OpenFront.io Bundle: Player List + Auto-Join
+// @name         OpenFront.io Lobby Intel + Discovery
 // @namespace    https://openfront.io/
 // @version      ${version}
 // @description  Merges "Lobby Player List" and "Auto-Join Lobby" into one efficient script. Shared API calls to prevent 429 errors. Compatible with OpenFront.io v0.29.0+

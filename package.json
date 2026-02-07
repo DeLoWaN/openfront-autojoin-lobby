@@ -1,7 +1,7 @@
 {
   "name": "openfront-bundle-userscript",
-  "version": "2.7.0",
-  "description": "OpenFront.io Bundle: Player List + Auto-Join",
+  "version": "2.7.1",
+  "description": "OpenFront.io Lobby Intel + Discovery",
   "type": "module",
   "scripts": {
     "dev": "node esbuild.config.js --watch",
