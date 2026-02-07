@@ -2,7 +2,7 @@
 // @name         OpenFront.io Lobby Intel + Discovery
 // @namespace    https://openfront.io/
 // @version      2.7.1
-// @description  Merges "Lobby Player List" and "Auto-Join Lobby" into one efficient script. Shared API calls to prevent 429 errors. Compatible with OpenFront.io v0.29.0+
+// @description  Live lobby player list and notify-only lobby discovery with Team criteria filters, shared API calls, and optional alerts.
 // @homepageURL  https://github.com/DeLoWaN/openfront-autojoin-lobby
 // @downloadURL  https://raw.githubusercontent.com/DeLoWaN/openfront-autojoin-lobby/main/dist/bundle.user.js
 // @updateURL    https://raw.githubusercontent.com/DeLoWaN/openfront-autojoin-lobby/main/dist/bundle.user.js

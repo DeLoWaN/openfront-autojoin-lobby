@@ -26,7 +26,7 @@ This userscript combines a live lobby player list with an intelligent lobby-disc
 
 ### Install
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Greasemonkey](https://www.greasespot.net/)
-2. Install from greasyfork: [https://greasyfork.org/en/scripts/555551-openfront-io-bundle-player-list-auto-join](https://greasyfork.org/en/scripts/555551-openfront-io-bundle-player-list-auto-join)
+2. Install from greasyfork: [https://greasyfork.org/en/scripts/555551-openfront-io-lobby-intel-discovery](https://greasyfork.org/en/scripts/555551-openfront-io-lobby-intel-discovery)
 3. Confirm installation when prompted
 4. Visit https://openfront.io/ to use the script
 
