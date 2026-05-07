@@ -56,12 +56,14 @@ export class LobbyDiscoveryEngine {
       }
 
       if (gameMode === 'Team') {
-        if (
-          criteria.teamCount !== null &&
-          criteria.teamCount !== undefined &&
-          criteria.teamCount !== lobbyTeamConfig
-        ) {
-          continue;
+        if (criteria.teamCount !== null && criteria.teamCount !== undefined) {
+          if (criteria.teamCount === '8+') {
+            if (typeof lobbyTeamConfig !== 'number' || lobbyTeamConfig < 8) {
+              continue;
+            }
+          } else if (criteria.teamCount !== lobbyTeamConfig) {
+            continue;
+          }
         }
 
         if (teamComparisonCapacity === null) {

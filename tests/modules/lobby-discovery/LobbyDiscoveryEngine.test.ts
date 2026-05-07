@@ -393,4 +393,88 @@ describe('LobbyDiscoveryEngine', () => {
 
     expect(engine.matchesCriteria(lobby, criteria)).toBe(false);
   });
+
+  describe('8+ team count matching', () => {
+    const make8PlusCriteria = (minPPT: number, maxPPT: number) => [
+      { gameMode: 'Team', teamCount: '8+', minPlayers: minPPT, maxPlayers: maxPPT },
+    ] as any;
+
+    it('matches a lobby with exactly 8 teams', () => {
+      const lobby = {
+        gameID: '8teams-1',
+        publicGameType: 'team',
+        numClients: 16,
+        gameConfig: {
+          gameMode: 'Team',
+          teamCount: 8,
+          maxClients: 16,
+        },
+        maxClients: 16,
+      } as any;
+      // 8 teams, 16/8 = 2 players per team — within [2, 10]
+      expect(engine.matchesCriteria(lobby, make8PlusCriteria(2, 10))).toBe(true);
+    });
+
+    it('matches a lobby with 10 teams', () => {
+      const lobby = {
+        gameID: '10teams-1',
+        publicGameType: 'team',
+        numClients: 14,
+        gameConfig: {
+          gameMode: 'Team',
+          teamCount: 10,
+          maxClients: 20,
+        },
+        maxClients: 20,
+      } as any;
+      // 10 teams, 20/10 = 2 players per team — within [2, 10]
+      expect(engine.matchesCriteria(lobby, make8PlusCriteria(2, 10))).toBe(true);
+    });
+
+    it('does not match a lobby with 7 teams', () => {
+      const lobby = {
+        gameID: '7teams-1',
+        publicGameType: 'team',
+        numClients: 14,
+        gameConfig: {
+          gameMode: 'Team',
+          teamCount: 7,
+          maxClients: 14,
+        },
+        maxClients: 14,
+      } as any;
+      expect(engine.matchesCriteria(lobby, make8PlusCriteria(2, 10))).toBe(false);
+    });
+
+    it('respects players-per-team bounds for 8+ lobbies', () => {
+      const lobby = {
+        gameID: '10teams-big',
+        publicGameType: 'team',
+        numClients: 30,
+        gameConfig: {
+          gameMode: 'Team',
+          teamCount: 10,
+          maxClients: 100,
+        },
+        maxClients: 100,
+      } as any;
+      // 10 teams, 100/10 = 10 players per team — outside [2, 5]
+      expect(engine.matchesCriteria(lobby, make8PlusCriteria(2, 5))).toBe(false);
+    });
+
+    it('does not match Humans Vs Nations with 8+ criteria', () => {
+      const lobby = {
+        gameID: 'hvn-1',
+        publicGameType: 'special',
+        numClients: 6,
+        gameConfig: {
+          gameMode: 'Team',
+          playerTeams: 'Humans Vs Nations',
+          maxClients: 60,
+        },
+        maxClients: 60,
+      } as any;
+      expect(engine.matchesCriteria(lobby, make8PlusCriteria(2, 62))).toBe(false);
+    });
+  });
 });
