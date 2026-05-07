@@ -847,6 +847,10 @@ describe('LobbyDiscoveryUI', () => {
         expect(chip?.closest('label')?.textContent?.trim()).toBe(String(n));
       }
 
+      const chip8plus = document.getElementById('discovery-team-8plus') as HTMLInputElement | null;
+      expect(chip8plus).not.toBeNull();
+      expect(chip8plus?.closest('label')?.textContent?.trim()).toBe('8+');
+
       const labels = Array.from(document.querySelectorAll('.ld-format-label')).map((el) =>
         el.textContent?.trim()
       );

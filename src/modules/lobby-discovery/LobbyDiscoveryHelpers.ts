@@ -108,6 +108,7 @@ export function getLobbyCurrentPlayers(lobby: Lobby): number | null {
   return null;
 }
 
+// '8+' is a criteria-only sentinel and is never passed here from lobby data (OpenFront sends numeric team counts)
 export function getPlayersPerTeam(
   playerTeams: TeamCount | null | undefined,
   gameCapacity: number | null
