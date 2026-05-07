@@ -53,6 +53,7 @@ const TEAM_COUNT_IDS: Array<[string, string]> = [
   ['discovery-team-5', '5'],
   ['discovery-team-6', '6'],
   ['discovery-team-7', '7'],
+  ['discovery-team-8plus', '8+'],
 ];
 
 const ALL_TEAM_IDS: string[] = [
@@ -515,7 +516,7 @@ export class LobbyDiscoveryUI {
       const checkbox = document.getElementById(id) as HTMLInputElement | null;
       if (!checkbox?.checked) continue;
       const value = checkbox.value;
-      if (value === 'Humans Vs Nations') {
+      if (value === 'Humans Vs Nations' || value === '8+') {
         values.push(value);
       } else {
         const numeric = parseInt(value, 10);
@@ -704,6 +705,7 @@ export class LobbyDiscoveryUI {
     for (const teamCount of values) {
       let checkbox: HTMLInputElement | null = null;
       if (teamCount === 'Humans Vs Nations') checkbox = document.getElementById('discovery-team-hvn') as HTMLInputElement;
+      else if (teamCount === '8+') checkbox = document.getElementById('discovery-team-8plus') as HTMLInputElement;
       else if (typeof teamCount === 'number') checkbox = document.getElementById(`discovery-team-${teamCount}`) as HTMLInputElement;
       if (checkbox) {
         checkbox.checked = true;
@@ -962,6 +964,7 @@ export class LobbyDiscoveryUI {
                 ${this.renderChip('discovery-team-5', '5', '5')}
                 ${this.renderChip('discovery-team-6', '6', '6')}
                 ${this.renderChip('discovery-team-7', '7', '7')}
+                ${this.renderChip('discovery-team-8plus', '8+', '8+')}
               </div>
               <div class="ld-slider-row" id="discovery-team-slider-row">
                 <div class="ld-slider-label">
