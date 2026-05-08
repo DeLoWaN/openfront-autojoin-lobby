@@ -58,7 +58,20 @@ export class LobbyDiscoveryEngine {
       if (gameMode === 'Team') {
         if (criteria.teamCount !== null && criteria.teamCount !== undefined) {
           if (criteria.teamCount === '8+') {
-            if (typeof lobbyTeamConfig !== 'number' || lobbyTeamConfig < 8) {
+            let numTeams: number | null = null;
+            if (typeof lobbyTeamConfig === 'number') {
+              numTeams = lobbyTeamConfig;
+            } else if (
+              lobbyTeamConfig === 'Duos' ||
+              lobbyTeamConfig === 'Trios' ||
+              lobbyTeamConfig === 'Quads'
+            ) {
+              const ppt = getPlayersPerTeam(lobbyTeamConfig, lobbyCapacity);
+              if (ppt !== null && lobbyCapacity !== null) {
+                numTeams = Math.floor(lobbyCapacity / ppt);
+              }
+            }
+            if (numTeams === null || numTeams < 8) {
               continue;
             }
           } else if (criteria.teamCount !== lobbyTeamConfig) {

@@ -394,6 +394,80 @@ describe('LobbyDiscoveryEngine', () => {
     expect(engine.matchesCriteria(lobby, criteria)).toBe(false);
   });
 
+  describe('LEMNOS-style lobby: 62 teams of 2 (special source, 124 capacity)', () => {
+    // Reproduces the screenshot scenario: LEMNOS, 62 TEAMS OF 2, 61/124, CROWDED + WATER NUKES + 1M STARTING GOLD
+    // Two possible wire shapes from OpenFront — numeric playerTeams vs named 'Duos' preset.
+
+    const makeLemnos = (playerTeams: number | string) => ({
+      gameID: 'lemnos-1',
+      publicGameType: 'special',
+      numClients: 61,
+      gameConfig: {
+        gameMode: 'Team',
+        playerTeams,
+        maxPlayers: 124,
+        publicGameModifiers: {
+          isCrowded: true,
+          isWaterNukes: true,
+          startingGold: 1_000_000,
+        },
+      },
+    } as any);
+
+    // All 8 format chips selected (HvN + 2 + 3 + 4 + 5 + 6 + 7 + 8+), PPT [2, 15]
+    // This is the exact state shown in the screenshot (9 active filters = Teams + 8 chips).
+    const allChipsCriteria = [
+      { gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 2, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 3, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 4, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 5, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 6, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: 7, minPlayers: 2, maxPlayers: 15 },
+      { gameMode: 'Team', teamCount: '8+', minPlayers: 2, maxPlayers: 15 },
+    ] as any;
+
+    // No format chips selected, PPT [2, 15] — "filter disabled" state
+    const noFormatCriteria = [
+      { gameMode: 'Team', teamCount: null, minPlayers: 2, maxPlayers: 15 },
+    ] as any;
+
+    describe('playerTeams: 62 (numeric team count — most likely wire format)', () => {
+      it('matches with all chips selected (8+ covers 62 teams, 2 PPT in [2,15])', () => {
+        expect(engine.matchesCriteria(makeLemnos(62), allChipsCriteria)).toBe(true);
+      });
+
+      it('matches with no format chips (null teamCount, 2 PPT in [2,15])', () => {
+        expect(engine.matchesCriteria(makeLemnos(62), noFormatCriteria)).toBe(true);
+      });
+
+      it('matches with only 8+ chip selected', () => {
+        const criteria = [{ gameMode: 'Team', teamCount: '8+', minPlayers: 2, maxPlayers: 15 }] as any;
+        expect(engine.matchesCriteria(makeLemnos(62), criteria)).toBe(true);
+      });
+
+      it('does not match with only HvN chip selected', () => {
+        const criteria = [{ gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 2, maxPlayers: 15 }] as any;
+        expect(engine.matchesCriteria(makeLemnos(62), criteria)).toBe(false);
+      });
+    });
+
+    describe('playerTeams: "Duos" (named preset — alternative wire format)', () => {
+      it('matches with all chips selected — 8+ resolves Duos to 62 teams via capacity', () => {
+        expect(engine.matchesCriteria(makeLemnos('Duos'), allChipsCriteria)).toBe(true);
+      });
+
+      it('matches with no format chips (null teamCount, getPlayersPerTeam("Duos")=2 in [2,15])', () => {
+        expect(engine.matchesCriteria(makeLemnos('Duos'), noFormatCriteria)).toBe(true);
+      });
+
+      it('matches with only 8+ chip — resolves Duos+124 capacity to 62 teams >= 8', () => {
+        const criteria = [{ gameMode: 'Team', teamCount: '8+', minPlayers: 2, maxPlayers: 15 }] as any;
+        expect(engine.matchesCriteria(makeLemnos('Duos'), criteria)).toBe(true);
+      });
+    });
+  });
+
   describe('8+ team count matching', () => {
     const make8PlusCriteria = (minPPT: number, maxPPT: number) => [
       { gameMode: 'Team', teamCount: '8+', minPlayers: minPPT, maxPlayers: maxPPT },
