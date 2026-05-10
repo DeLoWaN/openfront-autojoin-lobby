@@ -89,11 +89,16 @@ export class LobbyDiscoveryEngine {
         continue;
       }
 
-      if (criteria.minPlayers !== null && capacityToCompare < criteria.minPlayers) {
-        continue;
-      }
-      if (criteria.maxPlayers !== null && capacityToCompare > criteria.maxPlayers) {
-        continue;
+      // Humans Vs Nations has no fixed per-team player count (humans play against
+      // AI nations, not structured teams), so the players-per-team range filter is
+      // meaningless for that format. Skip it and match on format + modifiers only.
+      if (lobbyTeamConfig !== 'Humans Vs Nations') {
+        if (criteria.minPlayers !== null && capacityToCompare < criteria.minPlayers) {
+          continue;
+        }
+        if (criteria.maxPlayers !== null && capacityToCompare > criteria.maxPlayers) {
+          continue;
+        }
       }
 
       if (!this.matchesModifiers(lobby, criteria.modifiers)) {

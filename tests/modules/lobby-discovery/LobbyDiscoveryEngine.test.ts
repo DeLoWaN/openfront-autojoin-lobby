@@ -38,7 +38,9 @@ describe('LobbyDiscoveryEngine', () => {
     expect(engine.matchesCriteria(lobby, criteria)).toBe(true);
   });
 
-  it('matches Humans Vs Nations with human-capacity semantics', () => {
+  it('matches Humans Vs Nations by format alone, ignoring players-per-team range', () => {
+    // HvN has no fixed team size, so the min/max range is skipped entirely.
+    // The lobby matches as long as the format and modifiers align.
     const lobby = {
       gameID: 'hvn-1',
       publicGameType: 'special',
@@ -99,7 +101,10 @@ describe('LobbyDiscoveryEngine', () => {
     expect(engine.matchesCriteria(lobby, criteria)).toBe(false);
   });
 
-  it('matches Humans Vs Nations against criterion capacity bounds (no special 2x branch)', () => {
+  it('matches Humans Vs Nations even when capacity far exceeds the players-per-team range', () => {
+    // Bug regression: previously getPlayersPerTeam('Humans Vs Nations', cap) returned
+    // the full capacity (62), causing the filter to compare 62 against maxPlayers (e.g. 6)
+    // and silently reject every real HvN lobby. The range check is now skipped for HvN.
     const lobby = {
       gameID: 'hvn-cap',
       publicGameType: 'special',
@@ -111,11 +116,43 @@ describe('LobbyDiscoveryEngine', () => {
       maxClients: 62,
     } as any;
 
-    const criteria = [
+    // Tight range that would always reject if capacity (62) were compared against it
+    const tightRange = [
+      { gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 3, maxPlayers: 6 },
+    ] as any;
+
+    expect(engine.matchesCriteria(lobby, tightRange)).toBe(true);
+
+    // Wide range still matches too
+    const wideRange = [
       { gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 40, maxPlayers: 70 },
     ] as any;
 
-    expect(engine.matchesCriteria(lobby, criteria)).toBe(true);
+    expect(engine.matchesCriteria(lobby, wideRange)).toBe(true);
+  });
+
+  it('still respects modifier filters for Humans Vs Nations lobbies', () => {
+    const lobby = {
+      gameID: 'hvn-modifier',
+      publicGameType: 'special',
+      gameConfig: {
+        gameMode: 'Team',
+        playerTeams: 'Humans Vs Nations',
+        maxClients: 62,
+        publicGameModifiers: { isCrowded: true },
+      },
+      maxClients: 62,
+    } as any;
+
+    const requireCrowded = [
+      { gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 3, maxPlayers: 6, modifiers: { isCrowded: 'required' } },
+    ] as any;
+    const blockCrowded = [
+      { gameMode: 'Team', teamCount: 'Humans Vs Nations', minPlayers: 3, maxPlayers: 6, modifiers: { isCrowded: 'blocked' } },
+    ] as any;
+
+    expect(engine.matchesCriteria(lobby, requireCrowded)).toBe(true);
+    expect(engine.matchesCriteria(lobby, blockCrowded)).toBe(false);
   });
 
   it('applies blocked boolean and numeric modifier filters as an exclusion list', () => {
