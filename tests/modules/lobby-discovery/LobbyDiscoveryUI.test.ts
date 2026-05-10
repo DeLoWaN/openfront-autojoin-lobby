@@ -37,6 +37,17 @@ describe('LobbyDiscoveryUI', () => {
   let store: Map<string, any>;
   let ui: LobbyDiscoveryUI | null;
 
+  /**
+   * Sets up the homepage DOM with FFA + Special + Team lobby cards, mirroring
+   * what OpenFront's game-mode-selector Lit component renders when all three
+   * queue slots are filled.
+   *
+   * Also sets `selector.lobbies` on the custom element so that
+   * `getQueueCardElements()` can determine which right-column section belongs to
+   * 'special' vs 'team' (Lit renders them in that order; when a slot is absent
+   * Lit emits `nothing` and the section div is not created, so positional
+   * lookup breaks — we guard against that with `selector.lobbies`).
+   */
   function mountHomepageCards(joined = false): void {
     document.body.innerHTML = `
       <div id="page-play">
@@ -59,6 +70,17 @@ describe('LobbyDiscoveryUI', () => {
       <join-lobby-modal></join-lobby-modal>
       <host-lobby-modal></host-lobby-modal>
     `;
+
+    // Mirror selector.lobbies so getQueueCardElements() maps right-column sections
+    // correctly: rightSections[0]=special, rightSections[1]=team.
+    const selectorEl = document.querySelector('game-mode-selector') as any;
+    selectorEl.lobbies = {
+      games: {
+        ffa: [{ gameID: 'ffa-placeholder' }],
+        special: [{ gameID: 'special-placeholder' }],
+        team: [{ gameID: 'team-placeholder' }],
+      },
+    };
 
     const joinLobbyModal = document.querySelector('join-lobby-modal') as any;
     joinLobbyModal.currentLobbyId = joined ? 'joined-lobby' : '';
@@ -808,6 +830,105 @@ describe('LobbyDiscoveryUI', () => {
     expect(chip).toBeTruthy();
     expect(chip.tagName).toBe('BUTTON');
     expect(chip.dataset.state).toBe('any');
+  });
+
+  it('pulses team card when special queue is absent (right-column ordering regression)', () => {
+    // Bug: when the special queue has no lobby, Lit renders `nothing` and removes
+    // its div. The right column then has only one child (team). Old code looked
+    // for team at rightSections[1] (undefined), so the team card never pulsed.
+    // Fix: detect section presence from selector.lobbies and map accordingly.
+    document.body.innerHTML = `
+      <div id="page-play">
+        <game-mode-selector>
+          <div class="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
+            <div class="hidden sm:block">
+              <button id="ffa-card" class="queue-card">FFA</button>
+            </div>
+            <div class="hidden sm:flex sm:flex-col sm:gap-4">
+              <div class="flex-1 min-h-0">
+                <button id="team-card" class="queue-card">Team</button>
+              </div>
+            </div>
+          </div>
+        </game-mode-selector>
+      </div>
+      <join-lobby-modal></join-lobby-modal>
+      <host-lobby-modal></host-lobby-modal>
+    `;
+    const selectorEl = document.querySelector('game-mode-selector') as any;
+    selectorEl.lobbies = { games: { team: [{ gameID: 'team-placeholder' }] } };
+    const joinModal = document.querySelector('join-lobby-modal') as any;
+    joinModal.currentLobbyId = '';
+
+    store.set(STORAGE_KEYS.lobbyDiscoverySettings, {
+      criteria: [{ gameMode: 'Team', teamCount: null, minPlayers: null, maxPlayers: null }],
+      discoveryEnabled: true,
+      soundEnabled: false,
+      isTeamTwoTimesMinEnabled: false,
+    });
+
+    ui = new LobbyDiscoveryUI();
+
+    ui.receiveLobbyUpdate([
+      {
+        gameID: 'team-only',
+        publicGameType: 'team',
+        gameConfig: { gameMode: 'Team', teamCount: 2, maxClients: 10 },
+      },
+    ] as any);
+
+    expect(document.getElementById('team-card')?.classList.contains('of-discovery-card-active')).toBe(true);
+    expect(document.getElementById('ffa-card')?.classList.contains('of-discovery-card-active')).toBe(false);
+  });
+
+  it('correctly maps special card to rightSections[0] when only special queue is present', () => {
+    // When only the special slot has a lobby (team is absent), Lit renders one child in the
+    // right column — the special div at rightSections[0]. Verify that the correct button is
+    // found and pulsed when that lobby matches criteria.
+    document.body.innerHTML = `
+      <div id="page-play">
+        <game-mode-selector>
+          <div class="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
+            <div class="hidden sm:block">
+              <button id="ffa-card" class="queue-card">FFA</button>
+            </div>
+            <div class="hidden sm:flex sm:flex-col sm:gap-4">
+              <div class="flex-1 min-h-0">
+                <button id="special-card" class="queue-card">Special</button>
+              </div>
+            </div>
+          </div>
+        </game-mode-selector>
+      </div>
+      <join-lobby-modal></join-lobby-modal>
+      <host-lobby-modal></host-lobby-modal>
+    `;
+    const selectorEl = document.querySelector('game-mode-selector') as any;
+    selectorEl.lobbies = { games: { special: [{ gameID: 'special-placeholder' }] } };
+    const joinModal = document.querySelector('join-lobby-modal') as any;
+    joinModal.currentLobbyId = '';
+
+    store.set(STORAGE_KEYS.lobbyDiscoverySettings, {
+      criteria: [{ gameMode: 'FFA', teamCount: null, minPlayers: null, maxPlayers: null }],
+      discoveryEnabled: true,
+      soundEnabled: false,
+      isTeamTwoTimesMinEnabled: false,
+    });
+
+    ui = new LobbyDiscoveryUI();
+
+    // A special-source lobby with FFA gameMode matches FFA criteria.
+    // Its button must be found at rightSections[0] (the only right-column section).
+    ui.receiveLobbyUpdate([
+      {
+        gameID: 'special-only',
+        publicGameType: 'special',
+        gameConfig: { gameMode: 'Free For All', maxPlayers: 10 },
+      },
+    ] as any);
+
+    expect(document.getElementById('special-card')?.classList.contains('of-discovery-card-active')).toBe(true);
+    expect(document.getElementById('ffa-card')?.classList.contains('of-discovery-card-active')).toBe(false);
   });
 
   describe('team panel layout', () => {

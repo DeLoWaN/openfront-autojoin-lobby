@@ -337,13 +337,33 @@ export class LobbyDiscoveryUI {
     );
     if (!(desktopGrid instanceof HTMLElement)) return {};
 
-    const [leftColumn, rightColumn] = Array.from(desktopGrid.children) as HTMLElement[];
+    // Find columns by class, not by position. When a lobby slot is absent Lit
+    // renders `nothing` (no DOM node), so positional destructuring breaks.
+    // Left col: `hidden sm:block` (FFA). Right col: `hidden sm:flex sm:flex-col`.
+    const gridChildren = Array.from(desktopGrid.children) as HTMLElement[];
+    const leftColumn = gridChildren.find((el) => el.className.includes('sm:block'));
+    const rightColumn = gridChildren.find((el) => el.className.includes('sm:flex-col'));
     const rightSections = rightColumn ? (Array.from(rightColumn.children) as HTMLElement[]) : [];
+
+    // The right column renders special first, team second — but only the present
+    // slots get a DOM node (Lit uses `nothing` for absent ones). Use the lobby
+    // data to know which slots are live so we can map sections correctly.
+    // Note: `selector.lobbies` is the Lit JS property updated synchronously;
+    // the 16 ms deferred re-apply in scheduleQueueCardPulseSync() ensures the
+    // DOM has caught up by the time pulses are finalised.
+    const games = (selector as unknown as { lobbies?: { games?: Record<string, unknown[]> } })
+      .lobbies?.games;
+    const hasSpecial = Array.isArray(games?.['special']) && games!['special'].length > 0;
+    const hasTeam = Array.isArray(games?.['team']) && games!['team'].length > 0;
+
+    // Map sections: if both present → [0]=special, [1]=team; if only one → [0]=that one.
+    const specialSection = hasSpecial ? rightSections[0] : undefined;
+    const teamSection = hasTeam ? (hasSpecial ? rightSections[1] : rightSections[0]) : undefined;
 
     return {
       ffa: leftColumn?.querySelector('button') as HTMLElement | undefined,
-      special: rightSections[0]?.querySelector('button') as HTMLElement | undefined,
-      team: rightSections[1]?.querySelector('button') as HTMLElement | undefined,
+      special: specialSection?.querySelector('button') as HTMLElement | undefined,
+      team: teamSection?.querySelector('button') as HTMLElement | undefined,
     };
   }
 
