@@ -23,7 +23,8 @@
       "mcp__playwright__browser_console_messages",
       "Bash(node -e ' *)",
       "mcp__playwright__browser_evaluate",
-      "mcp__playwright__browser_network_requests"
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_wait_for"
     ]
   }
 }

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenFront — Next Games (faithful mockup)</title>
+<style>
+  /* Reproduces the real openfront.io game-mode-selector cards:
+     classes, sizes, colors, and CDN map thumbnails captured live. */
+  :root{
+    --malibu:#0084d1;                 /* bg-malibu-blue (live: rgb(0,132,209)) */
+    --surface:#14171a;                /* bg-surface */
+    --accent:#7aa7d4;                 /* our notifier accent */
+    --accent-line:rgba(122,167,212,.32);
+    --accent-shadow:122,167,212;
+    --text-muted:#8e8c85; --text-faint:#5a5853; --text-secondary:#c8c6c0;
+    --border-strong:rgba(255,255,255,.18);
+    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:var(--font); color:#f2f1ee;
+    background:
+      radial-gradient(1100px 520px at 50% -8%, rgba(122,167,212,.06), transparent 60%),
+      linear-gradient(180deg,#0c0e10,#0a0c0d);
+    padding:26px 28px 70px;}
+  .page{max-width:880px; margin:0 auto}
+  h1{font-size:17px; font-weight:700; margin:0 0 4px}
+  .sub{color:var(--text-muted); font-size:12.5px; margin:0 0 8px; line-height:1.55}
+  .decisions{display:flex; flex-wrap:wrap; gap:7px; margin:0 0 22px}
+  .pill{font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:999px;
+    background:rgba(122,167,212,.14); color:var(--accent); border:1px solid var(--accent-line)}
+
+  /* ============ real card recipe ============ */
+  .grid{display:grid; grid-template-columns:2fr 1fr; gap:16px; height:340px}
+  .rightcol{display:flex; flex-direction:column; gap:16px; min-height:0}
+  .rightcol .cardwrap{flex:1; min-height:0}
+
+  .card{position:relative; width:100%; height:100%; border-radius:16px; color:#fff;
+    text-transform:uppercase; background:var(--surface); border:0; overflow:visible;
+    transition:transform .2s ease, box-shadow .2s ease; cursor:pointer; display:block; text-align:left}
+  .card:hover{transform:scale(1.02)}
+  .card .art{position:absolute; inset:0; border-radius:16px; overflow:hidden; pointer-events:none}
+  .card .art img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; transform:scale(1.05)}
+  .toprow{position:absolute; left:8px; right:8px; top:8px; display:flex; align-items:flex-start; justify-content:space-between; gap:8px}
+  .tags{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:2px}
+  .tag,.timer{font-size:12px; font-weight:700; letter-spacing:1.2px; padding:4px 8px; border-radius:4px;
+    background:var(--malibu); color:#fff; box-shadow:0 2px 6px rgba(0,0,0,.45)}
+  .timer{text-transform:none}
+  .botbar{position:absolute; left:0; right:0; bottom:0; display:flex; flex-direction:column;
+    padding:8px 12px; background:rgba(0,0,0,.55); backdrop-filter:blur(8px);
+    border-bottom-left-radius:16px; border-bottom-right-radius:16px}
+  .count{position:absolute; right:8px; bottom:100%; margin-bottom:4px; display:flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:700; letter-spacing:1.2px; padding:1px 8px; border-radius:4px;
+    background:rgba(0,0,0,.70); backdrop-filter:blur(4px)}
+  .count svg{height:15px; width:15px}
+  .name{font-size:16px; font-weight:700; letter-spacing:.8px; line-height:1.1; margin:0}
+  .mode{font-size:12px; font-weight:400; letter-spacing:.6px; color:rgba(255,255,255,.7); margin:2px 0 0}
+
+  /* ============ UP NEXT variant (dimmed, dashed, joinable, no countdown) ============ */
+  .next{border:1.5px dashed var(--border-strong)}
+  .next .art img{opacity:.45; filter:grayscale(.55) brightness(.82)}
+  .next .art::after{content:''; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(10,12,13,.25), rgba(10,12,13,.55))}
+  .upnext{display:flex; align-items:center; gap:5px; font-size:10px; font-weight:800; letter-spacing:1.2px;
+    padding:4px 8px; border-radius:4px; background:rgba(10,12,13,.78); color:var(--text-secondary);
+    border:1px solid var(--border-strong)}
+  .upnext .dot{width:6px; height:6px; border-radius:50%; background:var(--text-muted)}
+  .next .name{color:var(--text-secondary)}
+  .next .count{background:rgba(0,0,0,.5); color:var(--text-muted)}
+  .joinhint{position:absolute; inset:0; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    background:rgba(10,12,13,.45); opacity:0; transition:opacity .14s ease}
+  .joinhint b{display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:#0b0d0e;
+    font-size:12px; font-weight:800; letter-spacing:.4px; padding:8px 15px; border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.5)}
+  .next:hover{transform:scale(1.02); border-color:var(--accent-line)}
+  .next:hover .joinhint{opacity:1}
+
+  /* MATCH — identical ring + glow to a live match (per decision) */
+  .match{border-style:solid; border-color:var(--accent);
+    box-shadow:0 0 0 2px var(--accent), 0 0 26px rgba(var(--accent-shadow),.55); animation:pulse 1.6s ease-in-out infinite}
+  .match .upnext{color:var(--accent); border-color:var(--accent-line); background:rgba(122,167,212,.16)}
+  .match .upnext .dot{background:var(--accent)}
+  .match .name{color:#fff}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--accent),0 0 18px rgba(var(--accent-shadow),.4)}
+    50%{box-shadow:0 0 0 2px var(--accent),0 0 34px rgba(var(--accent-shadow),.7)}}
+
+  /* up-next strip header + toggle */
+  .uphead{display:flex; align-items:center; gap:12px; margin:18px 0 12px}
+  .uphead .lbl{font-size:10.5px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; color:var(--text-muted)}
+  .uphead .rule{flex:1; height:1px; background:rgba(255,255,255,.07)}
+  .uphead .toggle{display:flex; align-items:center; gap:7px; font-size:11px; color:var(--text-secondary); font-weight:600}
+  .sw{width:30px; height:17px; border-radius:999px; background:var(--accent); position:relative; box-shadow:inset 0 0 0 1px var(--accent-line)}
+  .sw::after{content:''; position:absolute; top:2px; left:15px; width:13px; height:13px; border-radius:50%; background:#0b0d0e}
+
+  /* the up-next grid is shorter but same column structure → aligns under live cards */
+  .grid.upgrid{height:248px; margin-bottom:0}
+
+  /* action buttons row (context) */
+  .solo{margin:16px 0 0; width:100%; height:46px; border:0; border-radius:12px; background:var(--malibu);
+    color:#fff; font-size:14px; font-weight:800; letter-spacing:1px; text-transform:uppercase; cursor:pointer}
+  .actions{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px}
+  .actions button{height:44px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#15191d;
+    color:#e9e7e2; font-size:12.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase; cursor:pointer}
+
+  .note{margin-top:22px; padding:13px 15px; border-radius:10px; background:#14171a; border:1px solid rgba(255,255,255,.06);
+    color:var(--text-secondary); font-size:12.5px; line-height:1.65}
+  .note b{color:#f2f1ee}
+  .kbd{font-family:ui-monospace,Menlo,monospace; background:#20252a; border:1px solid rgba(255,255,255,.1);
+    border-radius:4px; padding:1px 5px; font-size:11px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>OpenFront Game Notifier — “Next Games”</h1>
+  <p class="sub">Faithful reproduction of the live <span class="kbd">game-mode-selector</span> cards (real classes, sizes, colors, CDN map art) with the Up Next strip grafted in. Live <b>[0]</b> + upcoming <b>[1]</b> data captured from the running site.</p>
+  <div class="decisions">
+    <span class="pill">Up Next mirrors the live 2fr / 1fr grid</span>
+    <span class="pill">Click card → join (/game/&lt;id&gt;)</span>
+    <span class="pill">Match alert = identical to live</span>
+    <span class="pill">Toggle · default ON</span>
+  </div>
+
+  <!-- ===================== LIVE (now) ===================== -->
+  <div class="grid">
+    <!-- FFA (left, 2fr) -->
+    <button class="card">
+      <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/beringsea/thumbnail.566ec71e8bb5.webp" alt=""></div>
+      <div class="toprow"><div></div><span class="timer">1min 35s</span></div>
+      <div class="botbar">
+        <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>35/80</span>
+        <p class="name">Bering Sea</p><p class="mode">Free For All</p>
+      </div>
+    </button>
+    <!-- right column: special over team -->
+    <div class="rightcol">
+      <div class="cardwrap">
+        <button class="card">
+          <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/deglaciatedantarctica/thumbnail.23b54b03827c.webp" alt=""></div>
+          <div class="toprow">
+            <div class="tags"><span class="tag">Random Spawn</span><span class="tag">5M Starting Gold</span></div>
+            <span class="timer">1min 50s</span>
+          </div>
+          <div class="botbar">
+            <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>10/27</span>
+            <p class="name">Deglaciated Antarctica</p><p class="mode">Humans Vs Nations</p>
+          </div>
+        </button>
+      </div>
+      <div class="cardwrap">
+        <button class="card">
+          <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/gatewaytotheatlantic/thumbnail.4dbe50a931cd.webp" alt=""></div>
+          <div class="toprow"><div></div><span class="timer">1min 18s</span></div>
+          <div class="botbar">
+            <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>29/105</span>
+            <p class="name">Gateway to the Atlantic</p><p class="mode">7 teams of 15</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== UP NEXT ===================== -->
+  <div class="uphead">
+    <span class="lbl">Up Next</span>
+    <span class="rule"></span>
+    <span class="toggle"><span class="sw"></span> Notify on upcoming games</span>
+  </div>
+
+  <div class="grid upgrid">
+    <!-- FFA next (left, 2fr) -->
+    <button class="card next">
+      <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/europe/thumbnail.5ffe4eb83aa5.webp" alt=""></div>
+      <div class="toprow">
+        <div class="tags"><span class="tag" style="background:rgba(10,12,13,.7);border:1px solid rgba(255,255,255,.12);color:var(--text-muted);box-shadow:none">Compact</span></div>
+        <span class="upnext"><span class="dot"></span>Up next</span>
+      </div>
+      <div class="joinhint"><b>▶ Join</b></div>
+      <div class="botbar">
+        <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>21 slots</span>
+        <p class="name">Europe</p><p class="mode">Free For All · starts after current</p>
+      </div>
+    </button>
+    <!-- right column: special-next (MATCH) over team-next -->
+    <div class="rightcol">
+      <div class="cardwrap">
+        <button class="card next match">
+          <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/pluto/thumbnail.6603fce9f2a9.webp" alt=""></div>
+          <div class="toprow">
+            <div class="tags"><span class="tag">x2 Gold Multiplier</span></div>
+            <span class="upnext"><span class="dot"></span>Match · up next</span>
+          </div>
+          <div class="joinhint"><b>▶ Join match</b></div>
+          <div class="botbar">
+            <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>39 slots</span>
+            <p class="name">Pluto</p><p class="mode">Trios</p>
+          </div>
+        </button>
+      </div>
+      <div class="cardwrap">
+        <button class="card next">
+          <div class="art"><img src="https://cdn.ofedge.io/game_assets/_assets/maps/faroeislands/thumbnail.61ab2a5cb7b7.webp" alt=""></div>
+          <div class="toprow"><div></div><span class="upnext"><span class="dot"></span>Up next</span></div>
+          <div class="joinhint"><b>▶ Join</b></div>
+          <div class="botbar">
+            <span class="count"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>72 slots</span>
+            <p class="name">Faroe Islands</p><p class="mode">Quads</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- action buttons (context) -->
+  <button class="solo">Solo</button>
+  <div class="actions"><button>Create Lobby</button><button>Ranked</button><button>Join Lobby</button></div>
+
+  <div class="note">
+    <b>Faithful to the live dashboard:</b> identical card markup, sizes (16px radius, 12px malibu-blue pills, black/55 blurred bottom bar), and real CDN thumbnails. The Up Next block reuses the exact <b>2fr / 1fr</b> grid so each upcoming card sits directly beneath its live slot.<br><br>
+    <b>Feature behavior:</b> upcoming cards are <b>dimmed + dashed</b> with an <b>“Up next”</b> chip where the countdown lives (the feed gives them no <span class="kbd">startsAt</span>) · they’re <b>clickable to join</b> via <span class="kbd">/game/&lt;gameID&gt;</span> (hover reveals ▶ Join) · a filter match <b>pulses + sounds identically to a live match</b> · the whole strip is gated by the “Notify on upcoming games” toggle (default ON).
+  </div>
+
+</div>
+</body>
+</html>

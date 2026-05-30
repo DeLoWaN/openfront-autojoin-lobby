@@ -17,7 +17,9 @@ import type {
   TeamCount,
 } from './LobbyDiscoveryTypes';
 import { LobbyDiscoveryEngine } from './LobbyDiscoveryEngine';
+import type { UpcomingCardModel } from './LobbyDiscoveryHelpers';
 import {
+  buildUpcomingCardModel,
   formatElapsedSince,
   getBrowserNotificationContent,
   getGameDetailsText,
@@ -82,6 +84,25 @@ function isDebugEnabled(): boolean {
   return false;
 }
 
+interface LobbySlot {
+  live?: Lobby;
+  upcoming?: Lobby;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Order of slots in the Up Next strip: FFA in the wide left column, special
+// then team stacked in the narrow right column — mirroring the native grid.
+const UPCOMING_SOURCE_ORDER: QueueSource[] = ['ffa', 'special', 'team'];
+
+const ICON_PLAYERS = `<svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>`;
+
 const ICON_CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>`;
 const ICON_CROSS = `<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
 const ICON_SOUND = `<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M19 5a9 9 0 010 14"/></svg>`;
@@ -94,6 +115,7 @@ export class LobbyDiscoveryUI {
   private lastMatchTime: number | null = null;
   private soundEnabled = true;
   private desktopNotificationsEnabled = false;
+  private notifyUpcomingEnabled = true;
   private desktopNotificationRequestId = 0;
   private activeMatchSources: Set<QueueSource> = new Set();
   private seenLobbies: Set<string> = new Set();
@@ -103,6 +125,15 @@ export class LobbyDiscoveryUI {
   private teamSlider: RangeSlider | null = null;
   private sleeping = false;
   private isDisposed = false;
+
+  private lastLobbies: Lobby[] = [];
+  private upcomingStrip: HTMLDivElement | null = null;
+  private lastUpcomingSlots: Map<QueueSource, LobbySlot> = new Map();
+  private lastUpcomingMatchSources: Set<QueueSource> = new Set();
+  // Per-slot render signature: lets us skip rebuilding a card whose content is
+  // unchanged, so the ~1s lobby refresh (and the 16ms pulse re-apply) don't
+  // swap the DOM node under the cursor and restart the hover animation.
+  private upcomingSlotSignatures: Map<QueueSource, string> = new Map();
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private gameInfoInterval: ReturnType<typeof setInterval> | null = null;
@@ -120,6 +151,7 @@ export class LobbyDiscoveryUI {
   }
 
   receiveLobbyUpdate(lobbies: Lobby[]): void {
+    this.lastLobbies = lobbies;
     this.processLobbies(lobbies);
   }
 
@@ -141,6 +173,7 @@ export class LobbyDiscoveryUI {
     this.desktopNotificationsEnabled = settings.desktopNotificationsEnabled;
     this.discoveryEnabled = settings.discoveryEnabled;
     this.isTeamTwoTimesMinEnabled = settings.isTeamTwoTimesMinEnabled;
+    this.notifyUpcomingEnabled = settings.notifyUpcomingEnabled ?? true;
   }
 
   private saveSettings(): void {
@@ -150,6 +183,7 @@ export class LobbyDiscoveryUI {
       soundEnabled: this.soundEnabled,
       desktopNotificationsEnabled: this.desktopNotificationsEnabled,
       isTeamTwoTimesMinEnabled: this.isTeamTwoTimesMinEnabled,
+      notifyUpcomingEnabled: this.notifyUpcomingEnabled,
     } satisfies LobbyDiscoverySettings);
   }
 
@@ -200,10 +234,30 @@ export class LobbyDiscoveryUI {
     gameInfoElement.textContent = `Current game: ${getGameDetailsText(currentLobby)}`;
   }
 
+  /**
+   * Group the flattened lobby snapshot by source into its live (`[0]`) and
+   * upcoming (`[1]`) entries. OpenFront's feed provides at most these two per
+   * slot, in that order; `extractLobbies` preserves the ordering.
+   */
+  private parseSlots(lobbies: Lobby[]): Map<QueueSource, LobbySlot> {
+    const slots = new Map<QueueSource, LobbySlot>();
+    for (const lobby of lobbies) {
+      const source = getLobbyQueueSource(lobby);
+      if (!source) continue;
+      const slot = slots.get(source) ?? {};
+      if (!slot.live) slot.live = lobby;
+      else if (!slot.upcoming) slot.upcoming = lobby;
+      slots.set(source, slot);
+    }
+    return slots;
+  }
+
   private processLobbies(lobbies: Lobby[]): void {
     try {
       this.updateCurrentGameInfo();
       this.syncSearchTimer();
+
+      const slots = this.parseSlots(lobbies);
 
       if (
         !this.discoveryEnabled ||
@@ -213,34 +267,36 @@ export class LobbyDiscoveryUI {
         this.seenLobbies.clear();
         this.desktopNotifiedLobbies.clear();
         this.updateQueueCardPulses(new Set());
+        // Display is independent of notification gating: still surface the
+        // upcoming games (without any match highlight) while on the lobby page.
+        this.renderUpcomingStrip(slots, new Set());
         this.updateStatusText();
         return;
       }
 
-      // OpenFront only renders games[source][0] per slot. Hidden lobbies in the
-      // same source aren't actionable: clicking the card joins the visible
-      // lobby. So pulsing or notifying for a hidden match is misleading — the
-      // user can't act on it. We restrict everything to the featured lobby.
-      const visibleSources = new Set<QueueSource>();
+      // Live (featured `[0]`) matches pulse the native queue card. Upcoming
+      // (`[1]`) matches highlight our own Up Next card and are gated behind the
+      // notifyUpcoming toggle. Dedup keys include gameID, so live vs upcoming
+      // for the same slot dedupe independently.
+      const liveMatchSources = new Set<QueueSource>();
+      const upcomingMatchSources = new Set<QueueSource>();
       const matchedKeys = new Set<string>();
       const newMatches: Lobby[] = [];
       let hasNewMatch = false;
 
       const debugEnabled = isDebugEnabled();
-      const seenSourcesForVisible = new Set<QueueSource>();
-      for (const lobby of lobbies) {
-        const source = getLobbyQueueSource(lobby);
-        if (!source) continue;
+      const evaluate = (
+        lobby: Lobby | undefined,
+        source: QueueSource,
+        kind: 'live' | 'upcoming'
+      ): void => {
+        if (!lobby) return;
         const matched = this.engine.matchesCriteria(lobby, this.criteriaList);
-        const isFeaturedForSource = !seenSourcesForVisible.has(source);
-        if (isFeaturedForSource) {
-          seenSourcesForVisible.add(source);
-        }
         if (debugEnabled) {
           console.log('[OF Discovery]', {
             lobbyId: lobby.gameID,
             source,
-            featured: isFeaturedForSource,
+            kind,
             mode: lobby.gameConfig?.gameMode,
             playerTeams: lobby.gameConfig?.playerTeams,
             modifiers: lobby.gameConfig?.publicGameModifiers,
@@ -252,16 +308,29 @@ export class LobbyDiscoveryUI {
             matched,
           });
         }
-        if (!matched || !isFeaturedForSource) continue;
+        if (!matched) return;
 
-        visibleSources.add(source);
+        if (kind === 'live') {
+          liveMatchSources.add(source);
+        } else {
+          // Upcoming matches notify (and highlight) only when the toggle is on.
+          if (!this.notifyUpcomingEnabled) return;
+          upcomingMatchSources.add(source);
+        }
+
         const notificationKey = this.getNotificationKey(lobby);
         matchedKeys.add(notificationKey);
         if (!this.seenLobbies.has(notificationKey)) hasNewMatch = true;
         if (!this.desktopNotifiedLobbies.has(notificationKey)) newMatches.push(lobby);
+      };
+
+      for (const [source, slot] of slots) {
+        evaluate(slot.live, source, 'live');
+        evaluate(slot.upcoming, source, 'upcoming');
       }
 
-      this.updateQueueCardPulses(visibleSources);
+      this.updateQueueCardPulses(liveMatchSources);
+      this.renderUpcomingStrip(slots, upcomingMatchSources);
       if (hasNewMatch) {
         this.lastMatchTime = Date.now();
         if (this.soundEnabled) SoundUtils.playGameFoundSound();
@@ -387,7 +456,221 @@ export class LobbyDiscoveryUI {
     this.pulseSyncTimeout = setTimeout(() => {
       this.pulseSyncTimeout = null;
       this.applyQueueCardPulses();
+      // Lit re-renders the native grid; re-apply the Up Next strip from the
+      // last known state so it survives a re-render that lands within 16 ms.
+      this.renderUpcomingStrip(this.lastUpcomingSlots, this.lastUpcomingMatchSources);
     }, 16);
+  }
+
+  /**
+   * Read OpenFront's asset manifest + CDN base from the page globals so upcoming
+   * cards reuse the exact CDN map thumbnails. Returns nulls when unavailable
+   * (e.g. unsafeWindow not granted, or in tests).
+   */
+  private getAssetContext(): { manifest: Record<string, string> | null; cdnBase: string | null } {
+    type AssetGlobals = { ASSET_MANIFEST?: Record<string, string>; CDN_BASE?: string };
+    let win: AssetGlobals | undefined;
+    try {
+      if (typeof unsafeWindow !== 'undefined') {
+        win = unsafeWindow as unknown as AssetGlobals;
+      }
+    } catch {
+      // unsafeWindow not granted — fall through to the page window
+    }
+    if (!win && typeof window !== 'undefined') {
+      win = window as unknown as AssetGlobals;
+    }
+    return {
+      manifest: win?.ASSET_MANIFEST ?? null,
+      cdnBase: win?.CDN_BASE ?? null,
+    };
+  }
+
+  private ensureUpcomingStrip(): HTMLDivElement | null {
+    const existing = document.getElementById('of-upcoming-strip') as HTMLDivElement | null;
+    if (existing) {
+      this.upcomingStrip = existing;
+      return existing;
+    }
+
+    const selector = document.querySelector('game-mode-selector');
+    if (!selector || !selector.parentNode) return null;
+
+    const strip = document.createElement('div');
+    strip.id = 'of-upcoming-strip';
+    strip.className = 'of-upcoming';
+    strip.innerHTML = `
+      <div class="of-upcoming-head">
+        <span class="of-upcoming-lbl">Up Next</span>
+        <span class="of-upcoming-rule"></span>
+        <label class="of-upcoming-toggle">
+          <input type="checkbox" id="of-upcoming-toggle">
+          <span class="of-upcoming-sw" aria-hidden="true"></span>
+          <span>Notify on upcoming games</span>
+        </label>
+      </div>
+      <div class="of-upcoming-grid">
+        <div class="of-upcoming-slot" data-source="ffa"></div>
+        <div class="of-upcoming-col">
+          <div class="of-upcoming-slot" data-source="special"></div>
+          <div class="of-upcoming-slot" data-source="team"></div>
+        </div>
+      </div>
+    `;
+
+    selector.parentNode.insertBefore(strip, selector.nextSibling);
+    this.upcomingStrip = strip;
+    // Fresh DOM — invalidate cached signatures so every slot re-renders once.
+    this.upcomingSlotSignatures.clear();
+
+    const toggle = strip.querySelector('#of-upcoming-toggle') as HTMLInputElement | null;
+    if (toggle) {
+      toggle.checked = this.notifyUpcomingEnabled;
+      toggle.addEventListener('change', () => {
+        this.notifyUpcomingEnabled = toggle.checked;
+        this.saveSettings();
+        this.processLobbies(this.lastLobbies);
+      });
+    }
+
+    return strip;
+  }
+
+  private renderUpcomingStrip(
+    slots: Map<QueueSource, LobbySlot>,
+    matchedSources: Set<QueueSource>
+  ): void {
+    this.lastUpcomingSlots = slots;
+    this.lastUpcomingMatchSources = matchedSources;
+
+    const strip = this.ensureUpcomingStrip();
+    if (!strip) return;
+
+    const visible = !this.sleeping && this.isDiscoveryFeedbackAllowed();
+    strip.style.display = visible ? '' : 'none';
+    if (!visible) return;
+
+    const toggle = strip.querySelector('#of-upcoming-toggle') as HTMLInputElement | null;
+    if (toggle && toggle.checked !== this.notifyUpcomingEnabled) {
+      toggle.checked = this.notifyUpcomingEnabled;
+    }
+
+    const { manifest, cdnBase } = this.getAssetContext();
+
+    for (const source of UPCOMING_SOURCE_ORDER) {
+      const container = strip.querySelector(
+        `.of-upcoming-slot[data-source="${source}"]`
+      ) as HTMLElement | null;
+      if (!container) continue;
+
+      const slot = slots.get(source);
+      const matched = matchedSources.has(source);
+      // Only show a slot that exists in the live grid (has a featured `[0]`),
+      // so the Up Next columns line up with the native lobby cards.
+      const model =
+        slot?.live && slot.upcoming
+          ? buildUpcomingCardModel(slot.upcoming, manifest, cdnBase)
+          : null;
+
+      const signature = !slot?.live
+        ? 'hidden'
+        : !model
+          ? 'empty'
+          : JSON.stringify([
+              model.gameID,
+              matched,
+              model.mapName,
+              model.modeText,
+              model.capacityLabel,
+              model.modifierLabels,
+              model.thumbnailUrl,
+            ]);
+
+      // Skip slots whose rendered content is identical — this is what prevents
+      // the hover flicker on every refresh.
+      if (this.upcomingSlotSignatures.get(source) === signature) continue;
+      this.upcomingSlotSignatures.set(source, signature);
+
+      if (signature === 'hidden') {
+        container.style.display = 'none';
+        container.replaceChildren();
+      } else if (signature === 'empty') {
+        container.style.display = '';
+        const empty = document.createElement('div');
+        empty.className = 'of-upcoming-empty';
+        empty.textContent = 'No upcoming game';
+        container.replaceChildren(empty);
+      } else {
+        container.style.display = '';
+        container.replaceChildren(this.buildUpcomingCardElement(model!, matched));
+      }
+    }
+  }
+
+  private buildUpcomingCardElement(model: UpcomingCardModel, matched: boolean): HTMLButtonElement {
+    const card = document.createElement('button');
+    card.type = 'button';
+    // A matched upcoming card reuses the live match beacon (of-discovery-card-active)
+    // for identical highlight parity, plus a marker class for chip/tag emphasis.
+    card.className = `of-upcoming-card${
+      matched ? ' of-upcoming-card-match of-discovery-card-active' : ''
+    }`;
+
+    // Cap the visible modifier tags so a heavily-modified lobby can't stack tags
+    // down over the map name; the overflow collapses into a "+N" chip.
+    const MAX_VISIBLE_TAGS = 3;
+    const shownLabels = model.modifierLabels.slice(0, MAX_VISIBLE_TAGS);
+    const extraTags = model.modifierLabels.length - shownLabels.length;
+    let tagsHtml = shownLabels
+      .map((label) => `<span class="of-upcoming-tag">${escapeHtml(label)}</span>`)
+      .join('');
+    if (extraTags > 0) {
+      tagsHtml += `<span class="of-upcoming-tag of-upcoming-tag-more">+${extraTags}</span>`;
+    }
+
+    const artHtml = model.thumbnailUrl
+      ? `<img src="${escapeHtml(model.thumbnailUrl)}" alt="" loading="lazy">`
+      : '';
+    const chipText = matched ? 'Match · up next' : 'Up next';
+
+    // No bespoke "Join" button: the whole card is clickable and scales on hover,
+    // exactly like OpenFront's native lobby cards, so the affordance is already
+    // familiar. The aria-label keeps the manual-join intent accessible.
+    card.setAttribute('aria-label', `Open ${model.mapName} in OpenFront's join modal`);
+
+    card.innerHTML = `
+      <span class="of-upcoming-art">${artHtml}</span>
+      <span class="of-upcoming-toprow">
+        <span class="of-upcoming-tags">${tagsHtml}</span>
+        <span class="of-upcoming-chip"><span class="of-upcoming-dot"></span>${chipText}</span>
+      </span>
+      <span class="of-upcoming-bot">
+        <span class="of-upcoming-name">${escapeHtml(model.mapName)}</span>
+        <span class="of-upcoming-metarow">
+          <span class="of-upcoming-mode">${escapeHtml(model.modeText)}</span>
+          ${
+            model.capacityLabel
+              ? `<span class="of-upcoming-count">${ICON_PLAYERS}${escapeHtml(model.capacityLabel)}</span>`
+              : ''
+          }
+        </span>
+      </span>
+    `;
+
+    // User-gesture only: navigation happens solely from this real click event,
+    // never from matching, watchers, or timers. OpenFront's router opens its
+    // own join modal; the user still confirms entry there.
+    card.addEventListener('click', () => this.navigateToGame(`/game/${model.gameID}`));
+
+    return card;
+  }
+
+  private navigateToGame(url: string): void {
+    window.location.assign(url);
+  }
+
+  private hideUpcomingStrip(): void {
+    if (this.upcomingStrip) this.upcomingStrip.style.display = 'none';
   }
 
   private stopTimer(): void {
@@ -922,7 +1205,7 @@ export class LobbyDiscoveryUI {
         </div>
       </div>
       <div class="ld-head">
-        <div class="ld-eyebrow">Notify only · never auto-joins</div>
+        <div class="ld-eyebrow">Notify + quick-join · never auto-joins</div>
         <h2 class="ld-title">OpenFront Game Notifier</h2>
       </div>
       <div class="discovery-body">
@@ -1126,6 +1409,7 @@ export class LobbyDiscoveryUI {
       this.stopTimer();
       this.stopGameInfoUpdates();
       this.updateQueueCardPulses(new Set());
+      this.hideUpcomingStrip();
     } else {
       this.panel.classList.remove('hidden');
       this.syncSearchTimer();
@@ -1143,6 +1427,11 @@ export class LobbyDiscoveryUI {
     }
     this.activeMatchSources.clear();
     this.applyQueueCardPulses();
+    this.upcomingStrip?.parentNode?.removeChild(this.upcomingStrip);
+    this.upcomingStrip = null;
+    this.lastUpcomingSlots = new Map();
+    this.lastUpcomingMatchSources = new Set();
+    this.upcomingSlotSignatures.clear();
     this.panel.parentNode?.removeChild(this.panel);
   }
 }

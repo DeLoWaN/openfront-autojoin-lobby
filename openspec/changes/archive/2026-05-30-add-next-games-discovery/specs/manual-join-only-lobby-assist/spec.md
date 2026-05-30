@@ -1,7 +1,4 @@
-## Purpose
-Define guardrails that keep lobby discovery strictly manual-join and prohibit automation actions.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Programmatic Join/Rejoin Is Prohibited
 The userscript MUST NOT initiate lobby join, rejoin, or lobby-switch actions from background logic, criteria matching, watcher callbacks, or timed processing. The userscript MAY navigate to OpenFront's join modal in direct response to an explicit user click on a discovery card (including an upcoming-game card); final lobby entry MUST still require explicit user interaction with OpenFront's own controls.
@@ -21,14 +18,3 @@ The userscript MUST NOT initiate lobby join, rejoin, or lobby-switch actions fro
 #### Scenario: No user interaction occurs
 - **WHEN** an upcoming game matches criteria but the user does not click its card
 - **THEN** the userscript MUST NOT navigate to or enter that game
-
-### Requirement: Clan Tag Apply Is Non-Navigational
-Applying a clan tag through quick-switch or clan-group actions MUST only update the username/clan-tag inputs and MUST NOT perform automated leave-then-join rejoin behavior.
-
-#### Scenario: Quick tag switch is used
-- **WHEN** the user applies a saved clan tag from the player list quick-switch UI
-- **THEN** the userscript MUST update the relevant input fields without leaving or joining a lobby
-
-#### Scenario: Clan-group use-tag action is used
-- **WHEN** the user clicks a clan group's "Use tag" action
-- **THEN** the userscript MUST apply the tag only and MUST NOT execute lobby navigation actions

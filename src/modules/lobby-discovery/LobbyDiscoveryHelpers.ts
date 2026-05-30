@@ -436,6 +436,102 @@ export function formatElapsedSince(timestampMs: number, now: number = Date.now()
   return `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`;
 }
 
+/**
+ * Mode/format line for a lobby card, mirroring OpenFront's own card title
+ * (getLobbyTitle in GameModeSelector): FFA → "Free For All"; team lobbies →
+ * "<n> teams of <playersPerTeam>" — including Duos/Trios/Quads, which OpenFront
+ * renders as "teams of 2/3/4" rather than the named format. Capacity is shown
+ * separately on upcoming cards.
+ */
+export function getLobbyModeText(lobby: Lobby): string {
+  const gameMode = getLobbyGameMode(lobby);
+
+  if (gameMode === 'FFA') return 'Free For All';
+  if (gameMode !== 'Team') return 'Unsupported mode';
+
+  const teamConfig = getLobbyTeamConfig(lobby);
+  const capacity = getLobbyCapacity(lobby);
+
+  if (teamConfig === 'Humans Vs Nations') {
+    return capacity !== null ? `${capacity} Humans vs ${capacity} Nations` : 'Humans vs Nations';
+  }
+
+  // Resolve players-per-team and team count for every team format.
+  let playersPerTeam: number | null = null;
+  if (teamConfig === 'Duos') playersPerTeam = 2;
+  else if (teamConfig === 'Trios') playersPerTeam = 3;
+  else if (teamConfig === 'Quads') playersPerTeam = 4;
+
+  let teamCount: number | null = null;
+  if (playersPerTeam !== null) {
+    teamCount = capacity !== null ? Math.floor(capacity / playersPerTeam) : null;
+  } else if (typeof teamConfig === 'number') {
+    teamCount = teamConfig;
+    playersPerTeam = capacity !== null && teamConfig > 0 ? Math.floor(capacity / teamConfig) : null;
+  }
+
+  if (teamCount === null) return 'Teams';
+  return playersPerTeam !== null ? `${teamCount} teams of ${playersPerTeam}` : `${teamCount} teams`;
+}
+
+/**
+ * Resolve a lobby's map thumbnail URL the same way OpenFront does
+ * (`maps/<normalisedMap>/thumbnail.webp` via its asset manifest + CDN base).
+ * Mirrors OpenFront's buildAssetUrl so cards reuse the exact CDN art. Falls back
+ * to a relative path when the manifest/CDN base are unavailable (e.g. in tests);
+ * a broken image then degrades to the dimmed card background.
+ */
+export function getLobbyMapThumbnailUrl(
+  lobby: Lobby,
+  assetManifest?: Record<string, string> | null,
+  cdnBase?: string | null
+): string | null {
+  const mapName = lobby.gameConfig?.gameMap?.trim();
+  if (!mapName) return null;
+
+  const normalizedMap = mapName.toLowerCase().replace(/[\s.]+/g, '');
+  if (!normalizedMap) return null;
+
+  const path = `maps/${encodeURIComponent(normalizedMap)}/thumbnail.webp`;
+  const directUrl = assetManifest?.[`maps/${normalizedMap}/thumbnail.webp`];
+  if (directUrl) {
+    const base = (cdnBase ?? '').replace(/\/+$/, '');
+    return base ? `${base}${directUrl}` : directUrl;
+  }
+
+  return `/${path}`;
+}
+
+export interface UpcomingCardModel {
+  gameID: string;
+  mapName: string;
+  modeText: string;
+  capacityLabel: string;
+  modifierLabels: string[];
+  thumbnailUrl: string | null;
+}
+
+/**
+ * Display model for an upcoming ("Up Next") card. Pure — DOM building lives in
+ * LobbyDiscoveryUI. Capacity is rendered as total slots ("N slots") because an
+ * upcoming game has no current player count until it is promoted to live.
+ */
+export function buildUpcomingCardModel(
+  lobby: Lobby,
+  assetManifest?: Record<string, string> | null,
+  cdnBase?: string | null
+): UpcomingCardModel {
+  const capacity = getLobbyCapacity(lobby);
+  return {
+    gameID: lobby.gameID,
+    mapName: lobby.gameConfig?.gameMap?.trim() || 'Unknown map',
+    modeText: getLobbyModeText(lobby),
+    capacityLabel: capacity !== null ? `${capacity} slots` : '',
+    modifierLabels: getActiveModifierLabels(lobby),
+    thumbnailUrl: getLobbyMapThumbnailUrl(lobby, assetManifest, cdnBase),
+  };
+}
+
 export function normalizeSettings(
   current: LobbyDiscoverySettings | null | undefined
 ): LobbyDiscoverySettings {
@@ -452,5 +548,9 @@ export function normalizeSettings(
       typeof current?.isTeamTwoTimesMinEnabled === 'boolean'
         ? current.isTeamTwoTimesMinEnabled
         : !!current?.isTeamThreeTimesMinEnabled,
+    notifyUpcomingEnabled:
+      typeof current?.notifyUpcomingEnabled === 'boolean'
+        ? current.notifyUpcomingEnabled
+        : true,
   };
 }
