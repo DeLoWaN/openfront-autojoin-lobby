@@ -21,6 +21,7 @@ const userscriptHeader = `// ==UserScript==
 // @updateURL    https://raw.githubusercontent.com/DeLoWaN/openfront-autojoin-lobby/main/dist/bundle.user.js
 // @author       DeLoVaN + SyntaxMenace + DeepSeek + Claude
 // @match        https://openfront.io/
+// @match        https://openfront.io/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle

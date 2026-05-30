@@ -1,7 +1,4 @@
-## Purpose
-Keep naming and user-facing language aligned with notification/manual discovery terminology.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: User-Facing Terminology Uses Notification/Manual-Join Language
 User-visible labels, headings, status text, and help text MUST describe the feature as notification/manual discovery and MUST NOT describe it as auto-join. User-facing copy MAY describe the manual quick-join navigation affordance using manual-join language (for example "quick-join" or "join"), provided it does not imply automated joining.
@@ -17,17 +14,3 @@ User-visible labels, headings, status text, and help text MUST describe the feat
 #### Scenario: Upcoming-game join affordance is shown
 - **WHEN** an upcoming-game card presents its join affordance
 - **THEN** the affordance MAY be the clickable card itself behaving like a native lobby card (no dedicated "join" button required), and any accompanying label — visible or accessible (e.g. an `aria-label`) — SHALL use manual-join language and SHALL NOT describe the action as auto-join
-
-### Requirement: DOM Selectors and CSS Hooks Are Renamed
-DOM IDs/classes and corresponding style hooks that currently encode auto-join naming MUST be renamed to notification/manual-discovery naming.
-
-#### Scenario: UI is inspected after render
-- **WHEN** discovery UI elements are present in the DOM
-- **THEN** IDs/classes used for core discovery controls SHALL use renamed notification-oriented prefixes
-
-### Requirement: Module and Symbol Naming Is Renamed in Source
-Source file names, class names, and imports for the discovery module MUST be renamed from auto-join naming to notification/manual-discovery naming.
-
-#### Scenario: Build-time imports are resolved
-- **WHEN** the project is type-checked and built after the refactor
-- **THEN** code references SHALL resolve through the renamed module/class/file paths without auto-join symbol names

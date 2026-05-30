@@ -14,6 +14,9 @@ import {
   formatElapsedSince,
   getLobbyModifierValue,
   getActiveModifierLabels,
+  getLobbyModeText,
+  getLobbyMapThumbnailUrl,
+  buildUpcomingCardModel,
 } from '@/modules/lobby-discovery/LobbyDiscoveryHelpers';
 
 describe('LobbyDiscoveryHelpers', () => {
@@ -53,6 +56,7 @@ describe('LobbyDiscoveryHelpers', () => {
       soundEnabled: true,
       desktopNotificationsEnabled: false,
       isTeamTwoTimesMinEnabled: false,
+      notifyUpcomingEnabled: true,
     });
   });
 
@@ -420,6 +424,123 @@ describe('LobbyDiscoveryHelpers', () => {
         isTeamTwoTimesMinEnabled: false,
       });
       expect(settings.criteria[0]!.teamCount).toBe('8+');
+    });
+  });
+
+  describe('normalizeSettings — notifyUpcomingEnabled', () => {
+    it('defaults notifyUpcomingEnabled to true for legacy settings missing the field', () => {
+      const settings = normalizeSettings({
+        criteria: [],
+        discoveryEnabled: true,
+        soundEnabled: true,
+        desktopNotificationsEnabled: false,
+        isTeamTwoTimesMinEnabled: false,
+      } as any);
+      expect(settings.notifyUpcomingEnabled).toBe(true);
+    });
+
+    it('defaults to true when no settings exist at all', () => {
+      expect(normalizeSettings(null).notifyUpcomingEnabled).toBe(true);
+    });
+
+    it('preserves an explicit false', () => {
+      const settings = normalizeSettings({
+        criteria: [],
+        discoveryEnabled: true,
+        soundEnabled: true,
+        desktopNotificationsEnabled: false,
+        isTeamTwoTimesMinEnabled: false,
+        notifyUpcomingEnabled: false,
+      });
+      expect(settings.notifyUpcomingEnabled).toBe(false);
+    });
+  });
+
+  describe('getLobbyModeText', () => {
+    it('labels FFA as "Free For All"', () => {
+      expect(
+        getLobbyModeText({ gameID: 'g', gameConfig: { gameMode: 'Free For All', maxPlayers: 21 } } as any)
+      ).toBe('Free For All');
+    });
+
+    it('labels numeric team lobbies as "<n> teams of <ppt>" like OpenFront', () => {
+      expect(
+        getLobbyModeText({
+          gameID: 'g',
+          gameConfig: { gameMode: 'Team', teamCount: 7, maxPlayers: 105 },
+        } as any)
+      ).toBe('7 teams of 15');
+    });
+
+    it('labels Duos/Trios/Quads as "<n> teams of 2/3/4" rather than the named format', () => {
+      expect(
+        getLobbyModeText({
+          gameID: 'g',
+          gameConfig: { gameMode: 'Team', playerTeams: 'Quads', maxPlayers: 40 },
+        } as any)
+      ).toBe('10 teams of 4');
+      expect(
+        getLobbyModeText({
+          gameID: 'g',
+          gameConfig: { gameMode: 'Team', playerTeams: 'Duos', maxPlayers: 30 },
+        } as any)
+      ).toBe('15 teams of 2');
+      expect(
+        getLobbyModeText({
+          gameID: 'g',
+          gameConfig: { gameMode: 'Team', playerTeams: 'Trios', maxPlayers: 90 },
+        } as any)
+      ).toBe('30 teams of 3');
+    });
+
+    it('labels Humans Vs Nations with the human/nation counts', () => {
+      expect(
+        getLobbyModeText({
+          gameID: 'g',
+          gameConfig: { gameMode: 'Team', playerTeams: 'Humans Vs Nations', maxPlayers: 27 },
+        } as any)
+      ).toBe('27 Humans vs 27 Nations');
+    });
+  });
+
+  describe('getLobbyMapThumbnailUrl', () => {
+    it('resolves the CDN url from the asset manifest and base', () => {
+      const lobby = { gameID: 'g', gameConfig: { gameMode: 'Free For All', gameMap: 'Bering Sea' } } as any;
+      const manifest = { 'maps/beringsea/thumbnail.webp': '/_assets/maps/beringsea/thumbnail.abc.webp' };
+      expect(getLobbyMapThumbnailUrl(lobby, manifest, 'https://cdn.ofedge.io')).toBe(
+        'https://cdn.ofedge.io/_assets/maps/beringsea/thumbnail.abc.webp'
+      );
+    });
+
+    it('falls back to a relative path when the manifest is unavailable', () => {
+      const lobby = { gameID: 'g', gameConfig: { gameMode: 'Free For All', gameMap: 'Bering Sea' } } as any;
+      expect(getLobbyMapThumbnailUrl(lobby, null, null)).toBe('/maps/beringsea/thumbnail.webp');
+    });
+
+    it('returns null when the lobby has no map', () => {
+      expect(
+        getLobbyMapThumbnailUrl({ gameID: 'g', gameConfig: { gameMode: 'Free For All' } } as any)
+      ).toBeNull();
+    });
+  });
+
+  describe('buildUpcomingCardModel', () => {
+    it('describes capacity as total slots and never exposes a start time', () => {
+      const model = buildUpcomingCardModel({
+        gameID: 'up-1',
+        gameConfig: {
+          gameMode: 'Free For All',
+          gameMap: 'Europe',
+          maxPlayers: 21,
+          publicGameModifiers: { isCompact: true },
+        },
+      } as any);
+      expect(model.gameID).toBe('up-1');
+      expect(model.mapName).toBe('Europe');
+      expect(model.modeText).toBe('Free For All');
+      expect(model.capacityLabel).toBe('21 slots');
+      expect(model.modifierLabels).toContain('Compact');
+      expect(model).not.toHaveProperty('startsAt');
     });
   });
 });

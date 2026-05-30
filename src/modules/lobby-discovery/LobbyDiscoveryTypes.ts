@@ -41,4 +41,5 @@ export interface LobbyDiscoverySettings {
   desktopNotificationsEnabled: boolean;
   isTeamTwoTimesMinEnabled: boolean;
   isTeamThreeTimesMinEnabled?: boolean;
+  notifyUpcomingEnabled?: boolean;
 }
